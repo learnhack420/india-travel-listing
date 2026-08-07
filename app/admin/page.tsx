@@ -30,28 +30,37 @@ export default function AdminDashboard() {
     checkAdmin()
   }, [])
 
+  // 🌟 FIX: Improved Loading State & Promise.all for faster, safer fetching
   async function checkAdmin() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      router.push('/login')
-      return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+
+      if (!profile || profile.role !== 'admin') {
+        router.push('/')
+        return
+      }
+
+      // Call all fetch functions simultaneously
+      await Promise.all([
+        fetchVendors(),
+        fetchListings(),
+        fetchBookings()
+      ])
+    } catch (error) {
+      console.error("Admin check failed:", error)
+    } finally {
+      setIsLoading(false)
     }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || profile.role !== 'admin') {
-      router.push('/')
-      return
-    }
-
-    // Call all fetch functions
-    fetchVendors()
-    fetchListings()
-    fetchBookings()
   }
 
   // 1. Fetch Bookings 
@@ -89,16 +98,40 @@ export default function AdminDashboard() {
       .select('*')
       .order('created_at', { ascending: false })
     if (data) setListings(data)
-    setIsLoading(false)
   }
 
-  // 5. Update Vendor Account Status
-  async function updateVendorStatus(id: string, newStatus: string) {
-    const { error } = await supabase
+  // 5. Update Vendor Account Status & Send Approval Email
+  async function updateVendorStatus(id: string, newStatus: string, vendorEmail?: string, vendorName?: string) {
+    const { data, error } = await supabase
       .from('profiles')
       .update({ approval_status: newStatus })
       .eq('id', id)
-    if (!error) fetchVendors()
+      .select()
+
+    if (error) {
+      alert("Error updating status: " + error.message)
+    } else {
+      console.log("Status updated successfully:", data)
+      
+      // 🌟 Send Approval Email when status changes to 'approved'
+      if (newStatus === 'approved' && vendorEmail) {
+        try {
+          await fetch('/api/send-approval-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: vendorEmail,
+              name: vendorName || 'Partner',
+              message: "Your profile has been approved! You can now log in, update your profile, and start using the platform."
+            })
+          })
+        } catch (mailErr) {
+          console.error("Email sending failed:", mailErr)
+        }
+      }
+
+      fetchVendors() // Refresh the vendor list instantly
+    }
   }
 
   // 6. Delete Vendor
@@ -151,21 +184,16 @@ export default function AdminDashboard() {
     }
   }
 
-  // 7. Update Listing Status (with error alert)
-async function updateListingStatus(id: string, newStatus: string) {
-  const { error } = await supabase
-    .from('listings')
-    .update({ status: newStatus })
-    .eq('id', id)
-    
-  if (error) {
-    alert("Error updating listing status: " + error.message)
-  } else {
-    fetchListings()
+  // 7. Update Listing Status
+  async function updateListingStatus(id: string, newStatus: string) {
+    const { error } = await supabase
+      .from('listings')
+      .update({ status: newStatus })
+      .eq('id', id)
+    if (!error) fetchListings()
   }
-}
 
-  // 🌟 NAYA FUNCTION: Delete Listing Permanently
+  // Delete Listing Permanently
   async function deleteListing(id: string) {
     if (!window.confirm("WARNING: Kya aap sach mein is listing ko permanently delete karna chahte hain? Yeh wapas recover nahi hogi.")) return
 
@@ -192,14 +220,14 @@ async function updateListingStatus(id: string, newStatus: string) {
     return `/vendor`
   }
 
-  // 🌟 FIXED: Helper to determine View URL
+  // Helper to determine View URL
   const getViewUrl = (listing: any) => {
     const slug = listing.slug || listing.id
     if (listing.category === 'tour') return `/tour/${slug}`
     if (listing.category === 'hotel') return `/hotel/${slug}`
     if (listing.category === 'cab') return `/cabs/${slug}`
     if (listing.category === 'destination') return `/places/${slug}`
-    if (listing.category === 'blog') return `/${slug}` // 👈 FIXED HERE: Direct root url for blogs
+    if (listing.category === 'blog') return `/${slug}`
     return `/listing/${slug}`
   }
 
@@ -218,20 +246,15 @@ async function updateListingStatus(id: string, newStatus: string) {
     { id: 'blog', label: 'Blogs' }
   ]
 
-  // 🌟 Helper to get counts per category
   const getCategoryCount = (categoryId: string) => {
     if (categoryId === 'all') return listings.length;
     return listings.filter(l => l.category === categoryId).length;
   }
 
-  // 🌟 Filter listings based on active sub-tab AND Search Query
   const displayedListings = listings.filter(listing => {
-    // 1. Category Filter
     const matchesCategory = activeListingCategory === 'all' ? true : listing.category === activeListingCategory;
     
-    // 2. Search Query Filter (Title or Location)
     const q = searchQuery.toLowerCase();
-    // Naya Safe Code
     const title = typeof listing.title === 'string' ? listing.title.toLowerCase() : '';
     const location = typeof listing.location === 'string' ? listing.location.toLowerCase() : '';
     const matchesSearch = title.includes(q) || location.includes(q);
@@ -239,10 +262,11 @@ async function updateListingStatus(id: string, newStatus: string) {
     return matchesCategory && matchesSearch;
   });
 
-  // Helper to cleanly format location strings
-  const formatLocationForList = (locStr: string) => {
+  // 🌟 FIX: Safe location string formatter to prevent dashboard crash
+  const formatLocationForList = (locStr: any) => {
     if (!locStr) return 'Online / Blog'
-    return locStr.replace(/ > /g, ', ')
+    if (Array.isArray(locStr)) return locStr.join(', ')
+    return String(locStr).replace(/ > /g, ', ')
   }
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center text-xl font-bold">Checking Security...</div>
@@ -309,7 +333,7 @@ async function updateListingStatus(id: string, newStatus: string) {
                         <div className="text-sm text-gray-800 font-bold">{booking.listing_title}</div>
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-600">
-                        {booking.booking_details && (
+                        {booking.booking_details && typeof booking.booking_details === 'object' && (
                           <div className="space-y-1">
                             {booking.booking_details.date && <div>📅 <span className="font-semibold">{booking.booking_details.date}</span></div>}
                             {booking.booking_details.pickup && <div>📍 {formatLocationForList(booking.booking_details.pickup)} ➔ {formatLocationForList(booking.booking_details.drop)}</div>}
@@ -373,11 +397,11 @@ async function updateListingStatus(id: string, newStatus: string) {
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
                         <button onClick={() => openEditVendorModal(vendor)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</button>
-                        <button onClick={() => deleteVendor(vendor.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md inline-block">🗑️ Del</button>
+                        <button onClick={() => deleteVendor(vendor.id)} className="text-red-600 hover:text-red-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">🗑️ Del</button>
 
                         {vendor.approval_status === 'pending' && (
                           <>
-                            <button onClick={() => updateVendorStatus(vendor.id, 'approved')} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
+                            <button onClick={() => updateVendorStatus(vendor.id, 'approved', vendor.email, vendor.full_name)} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
                             <button onClick={() => updateVendorStatus(vendor.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
                           </>
                         )}
@@ -397,7 +421,6 @@ async function updateListingStatus(id: string, newStatus: string) {
           {activeTab === 'listings' && (
             <div className="flex flex-col">
               
-              {/* 🌟 NEW: Search Bar Section */}
               <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center gap-4 flex-wrap">
                 <div className="relative w-full md:w-96">
                   <input 
@@ -411,7 +434,6 @@ async function updateListingStatus(id: string, newStatus: string) {
                 </div>
               </div>
 
-              {/* 🌟 UPDATED: Category Tabs with Counts */}
               <div className="bg-gray-50 border-b border-gray-200 p-4 flex gap-3 overflow-x-auto whitespace-nowrap">
                 {listingCategories.map(cat => {
                   const count = getCategoryCount(cat.id);
@@ -431,7 +453,6 @@ async function updateListingStatus(id: string, newStatus: string) {
                 })}
               </div>
 
-              {/* Table Data */}
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -471,7 +492,6 @@ async function updateListingStatus(id: string, newStatus: string) {
                             <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
                           )}
                           
-                          {/* 🌟 NAYA BUTTON: Permanent Delete for declined listings */}
                           {listing.status === 'declined' && (
                             <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
                           )}
@@ -516,8 +536,7 @@ async function updateListingStatus(id: string, newStatus: string) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
-                  <input type="tel" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />
-                </div>
+<input type="tel" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />                </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Agency Name</label>
                   <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} placeholder="Travel Agency" />
