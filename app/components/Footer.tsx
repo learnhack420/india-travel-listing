@@ -17,7 +17,7 @@ export default function Footer() {
             <p className="text-sm text-gray-400 mb-4 max-w-sm leading-relaxed">
               Discover the beauty of India with our verified vendors. Best cab services, tour packages, and comfortable stays all in one place.
             </p>
-            <p className="text-sm">📧 rajtours14@gmail.com</p>
+            <p className="text-sm">📧 indiatouroperators1@gmail.com</p>
             <p className="text-sm mt-1">📞 +91 98924 55466</p>
           </div>
 

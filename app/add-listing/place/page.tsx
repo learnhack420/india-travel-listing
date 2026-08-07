@@ -22,6 +22,9 @@ function PlaceFormContent() {
   const [message, setMessage] = useState({ type: "", text: "" })
   const [vendorId, setVendorId] = useState("")
   const [userRole, setUserRole] = useState("")
+  
+  // 🌟 NEW: Track button action (draft or publish)
+  const [submitAction, setSubmitAction] = useState("publish")
 
   const [location, setLocation] = useState("")
 
@@ -56,7 +59,7 @@ function PlaceFormContent() {
 
   const [topAttractions, setTopAttractions] = useState([""])
   const [gallery, setGallery] = useState([""])
-  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null) // 🌟 Loader state for gallery
+  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null)
 
   useEffect(() => {
     checkAccessAndLoadData()
@@ -150,7 +153,6 @@ function PlaceFormContent() {
     setLoading(false)
   }
 
-  // 🌟 IMGBB IMAGE UPLOAD HELPER FUNCTION (No Supabase Storage used)
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
@@ -175,7 +177,6 @@ function PlaceFormContent() {
     }
   }
 
-  // 🌟 Main Image Upload (Updated to ImgBB)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -190,7 +191,6 @@ function PlaceFormContent() {
     setIsUploading(false)
   }
 
-  // 🌟 Gallery Upload Handler
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -310,6 +310,22 @@ function PlaceFormContent() {
     setFormData(prev => ({ ...prev, faqItems: newFaqs }))
   }
 
+  // 🌟 NEW: Handles permanent deletion of the draft/listing
+  const handleDeleteListing = async () => {
+    if (!window.confirm("WARNING: Kya aap sach mein is listing ko delete karna chahte hain? Yeh wapas recover nahi hogi.")) return
+
+    setSubmitting(true)
+    const { error } = await supabase.from("listings").delete().eq("id", editId)
+    
+    if (error) {
+      alert("Error deleting listing: " + error.message)
+      setSubmitting(false)
+    } else {
+      alert("Listing deleted successfully!")
+      router.push(userRole === 'admin' ? "/admin" : "/vendor")
+    }
+  }
+
   const handleUpdateOrInsert = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isUploading) return alert("Please wait for the image to upload...")
@@ -342,6 +358,12 @@ function PlaceFormContent() {
       faqItems: cleanFaqs
     }
 
+    // 🌟 NEW: Determine Final Status based on which button was clicked
+    let finalStatus = "draft";
+    if (submitAction === "publish") {
+      finalStatus = userRole === "admin" ? "approved" : "pending";
+    }
+
     const dbPayload = {
       title: formData.placeName,
       slug: formData.slug,
@@ -349,6 +371,7 @@ function PlaceFormContent() {
       category: "destination", 
       location: location,
       price: 0,
+      status: finalStatus, // Applied Draft or Publish status here
       metadata: metadata 
     }
 
@@ -365,8 +388,7 @@ function PlaceFormContent() {
         .from("listings")
         .insert([{
           ...dbPayload,
-          vendor_id: vendorId,
-          status: "pending" 
+          vendor_id: vendorId
         }])
       error = res.error
     }
@@ -379,7 +401,8 @@ function PlaceFormContent() {
       }
       setSubmitting(false)
     } else {
-      if (!editId) {
+      // Only send email if a new item is submitted for approval (not saved as draft)
+      if (!editId && submitAction === "publish") {
         fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -396,7 +419,7 @@ function PlaceFormContent() {
         }).catch(err => console.error("Email error:", err))
       }
 
-      setMessage({ type: "success", text: editId ? "✅ Tourist Attraction successfully updated!" : "✅ Tourist Attraction submitted for approval!" })
+      setMessage({ type: "success", text: submitAction === "draft" ? "✅ Draft saved successfully!" : "✅ Attraction submitted successfully!" })
       setSubmitting(false)
       setTimeout(() => { router.push(userRole === 'admin' ? "/admin" : "/vendor") }, 2000)
     }
@@ -662,7 +685,6 @@ function PlaceFormContent() {
               </div>
             </div>
 
-            {/* 🌟 GALLERY UPLOAD FIX HERE */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-800">5. Photo Gallery (Extra Image URLs)</h2>
@@ -673,7 +695,6 @@ function PlaceFormContent() {
                   <div key={index} className="flex items-center gap-2">
                     <input type="url" className="flex-1 px-4 py-2 border rounded-lg outline-none bg-gray-50 text-sm" placeholder="https://website.com/image.jpg" value={url} onChange={(e) => handleArrayChange(index, e.target.value, "gallery")} />
                     
-                    {/* 🌟 Folder Icon logic for ImgBB gallery upload */}
                     <label className={`px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm transition-colors border ${uploadingGalleryIndex === index ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'}`}>
                       {uploadingGalleryIndex === index ? '⏳...' : '📁'}
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => handleGalleryUpload(e, index)} disabled={uploadingGalleryIndex === index} />
@@ -701,9 +722,36 @@ function PlaceFormContent() {
               <button type="button" onClick={addFaq} className="mt-4 bg-white px-4 py-2 rounded-lg text-indigo-600 font-bold text-xs border border-indigo-200 hover:bg-indigo-50 transition-all">+ Add More FAQ</button>
             </div>
 
-            <div className="pt-6 border-t">
-              <button type="submit" disabled={submitting || isUploading || uploadingGalleryIndex !== null} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform transform hover:scale-[1.01] disabled:bg-amber-400">
-                {submitting ? "Processing..." : (editId ? "Update Attraction Page" : "Submit Attraction for Approval")}
+            {/* 🌟 NEW: Action Buttons (Delete, Save Draft, Publish) */}
+            <div className="pt-6 border-t flex flex-col md:flex-row gap-4">
+              
+              {editId && (
+                <button 
+                  type="button" 
+                  onClick={handleDeleteListing}
+                  disabled={submitting || isUploading || uploadingGalleryIndex !== null}
+                  className="w-full md:w-1/4 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-4 rounded-2xl font-black text-lg transition-transform hover:scale-[1.01]"
+                >
+                  🗑️ Delete
+                </button>
+              )}
+
+              <button 
+                type="submit" 
+                onClick={() => setSubmitAction("draft")}
+                disabled={submitting || isUploading || uploadingGalleryIndex !== null} 
+                className="w-full md:w-auto flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-2xl font-black text-lg shadow-sm transition-transform hover:scale-[1.01]"
+              >
+                💾 Save as Draft
+              </button>
+
+              <button 
+                type="submit" 
+                onClick={() => setSubmitAction("publish")}
+                disabled={submitting || isUploading || uploadingGalleryIndex !== null} 
+                className="w-full md:w-auto flex-1 bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform hover:scale-[1.01] disabled:bg-amber-400"
+              >
+                {submitting ? "Processing..." : (userRole === "admin" ? "🚀 Publish Now" : "🚀 Submit for Approval")}
               </button>
             </div>
 
