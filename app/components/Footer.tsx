@@ -9,14 +9,14 @@ export default function Footer() {
           {/* Brand Info */}
           <div className="col-span-1 md:col-span-2">
             <h2 className="text-2xl font-extrabold text-white mb-4 flex items-center">
-              <span className="text-orange-500">E-Mumbai</span> 
-              <span className="text-blue-900 ml-1">Tourism</span> 
+              <span className="text-orange-500">India</span> 
+              <span className="text-blue-400 ml-1">Tour Operators</span> 
             </h2>
             <p className="text-sm text-gray-400 mb-4 max-w-sm leading-relaxed">
-              Discover the beauty of Mumbai, Lonavala, Pune, and Alibag with our verified vendors. Best cab services, tour packages, and comfortable stays all in one place.
+              Discover the beauty of India with our verified vendors. Best cab services, tour packages, and comfortable stays all in one place.
             </p>
-            <p className="text-sm">📧 emumbaitourism@gmail.com</p>
-            <p className="text-sm mt-1">📞 +91 9869996669</p>
+            <p className="text-sm">📧 rajtours14@gmail.com</p>
+            <p className="text-sm mt-1">📞 +91 98924 55466</p>
           </div>
 
           {/* Quick Links (For Customers) */}
@@ -46,7 +46,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-800 mt-10 pt-6 text-center text-sm text-gray-500 space-y-2">
-          <p>© {new Date().getFullYear()} E-Mumbai Tourism. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} India Tour Operators. All rights reserved.</p>
           <p className="text-xs">
             Operated & Managed by{' '}
             <a 
