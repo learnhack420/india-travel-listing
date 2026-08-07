@@ -27,9 +27,11 @@ export default function Header() {
           
           {/* Logo Section */}
           <div className="flex-shrink-0 flex items-center">
-            <Link href="/" className="text-2xl font-extrabold tracking-tight flex items-center">
+            <Link href="/" className="text-2xl font-extrabold tracking-tight flex items-center flex-wrap">
               <span className="text-orange-500">India</span> 
-              <span className="text-blue-900 ml-1">Tour Operators</span> 
+              <span className="text-blue-600 ml-1">Tour</span> 
+              <span className="text-slate-900 ml-1">Operators</span>
+              <span className="text-gray-400 text-sm ml-0.5">.com</span>
             </Link>
           </div>
 

@@ -8,9 +8,11 @@ export default function Footer() {
           
           {/* Brand Info */}
           <div className="col-span-1 md:col-span-2">
-            <h2 className="text-2xl font-extrabold text-white mb-4 flex items-center">
+            <h2 className="text-2xl font-extrabold text-white mb-4 flex items-center flex-wrap">
               <span className="text-orange-500">India</span> 
-              <span className="text-blue-400 ml-1">Tour Operators</span> 
+              <span className="text-blue-400 ml-1">Tour</span> 
+              <span className="text-green-500 ml-1">Operators</span>
+              <span className="text-gray-400 text-sm ml-1">.com</span>
             </h2>
             <p className="text-sm text-gray-400 mb-4 max-w-sm leading-relaxed">
               Discover the beauty of India with our verified vendors. Best cab services, tour packages, and comfortable stays all in one place.
