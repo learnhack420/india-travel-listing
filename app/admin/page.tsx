@@ -72,13 +72,21 @@ export default function AdminDashboard() {
     if (data) setBookings(data)
   }
 
-  // 2. Update Booking Status 
+  // 2. Update Booking Status (Added silent RLS fail check)
   async function updateBookingStatus(id: string, newStatus: string) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .update({ status: newStatus })
       .eq('id', id)
-    if (!error) fetchBookings()
+      .select()
+
+    if (error) {
+      alert("Error updating booking status: " + error.message)
+    } else if (!data || data.length === 0) {
+      alert("Warning: No rows were updated. Please check your Supabase RLS policies for Bookings.")
+    } else {
+      fetchBookings()
+    }
   }
 
   // 3. Fetch Vendors (Partners)
@@ -100,7 +108,7 @@ export default function AdminDashboard() {
     if (data) setListings(data)
   }
 
-  // 5. Update Vendor Account Status & Send Approval Email
+  // 5. Update Vendor Account Status & Send Approval Email (Added silent RLS fail check)
   async function updateVendorStatus(id: string, newStatus: string, vendorEmail?: string, vendorName?: string) {
     const { data, error } = await supabase
       .from('profiles')
@@ -110,6 +118,8 @@ export default function AdminDashboard() {
 
     if (error) {
       alert("Error updating status: " + error.message)
+    } else if (!data || data.length === 0) {
+      alert("Warning: No rows were updated. Please check your Supabase RLS policies for Profiles.")
     } else {
       console.log("Status updated successfully:", data)
       
@@ -184,7 +194,7 @@ export default function AdminDashboard() {
     }
   }
 
-  // 7. Update Listing Status (Fixed with .select() & error alert)
+  // 7. Update Listing Status (Added silent RLS fail check)
   async function updateListingStatus(id: string, newStatus: string) {
     const { data, error } = await supabase
       .from('listings')
@@ -194,6 +204,8 @@ export default function AdminDashboard() {
 
     if (error) {
       alert("Error updating listing status: " + error.message)
+    } else if (!data || data.length === 0) {
+      alert("Warning: No rows were updated. Please check your Supabase RLS policies for Listings.")
     } else {
       console.log("Listing status updated successfully:", data)
       fetchListings() // Immediately refresh listings table
