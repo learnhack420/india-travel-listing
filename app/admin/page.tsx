@@ -151,14 +151,19 @@ export default function AdminDashboard() {
     }
   }
 
-  // 7. Update Listing Status
-  async function updateListingStatus(id: string, newStatus: string) {
-    const { error } = await supabase
-      .from('listings')
-      .update({ status: newStatus })
-      .eq('id', id)
-    if (!error) fetchListings()
+  // 7. Update Listing Status (with error alert)
+async function updateListingStatus(id: string, newStatus: string) {
+  const { error } = await supabase
+    .from('listings')
+    .update({ status: newStatus })
+    .eq('id', id)
+    
+  if (error) {
+    alert("Error updating listing status: " + error.message)
+  } else {
+    fetchListings()
   }
+}
 
   // 🌟 NAYA FUNCTION: Delete Listing Permanently
   async function deleteListing(id: string) {
