@@ -184,13 +184,20 @@ export default function AdminDashboard() {
     }
   }
 
-  // 7. Update Listing Status
+  // 7. Update Listing Status (Fixed with .select() & error alert)
   async function updateListingStatus(id: string, newStatus: string) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('listings')
       .update({ status: newStatus })
       .eq('id', id)
-    if (!error) fetchListings()
+      .select()
+
+    if (error) {
+      alert("Error updating listing status: " + error.message)
+    } else {
+      console.log("Listing status updated successfully:", data)
+      fetchListings() // Immediately refresh listings table
+    }
   }
 
   // Delete Listing Permanently
@@ -536,7 +543,8 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
-<input type="tel" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />                </div>
+                  <input type="tel" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />
+                </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Agency Name</label>
                   <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} placeholder="Travel Agency" />
