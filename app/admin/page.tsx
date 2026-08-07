@@ -5,15 +5,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('bookings') // Default tab now 'bookings'
-  const [activeListingCategory, setActiveListingCategory] = useState('all') // Sub-tab state for listings
-  
-  // 🌟 NEW: Search query state for filtering listings
+  const [activeTab, setActiveTab] = useState('bookings')
+  const [activeListingCategory, setActiveListingCategory] = useState('all') 
   const [searchQuery, setSearchQuery] = useState('') 
   
   const [listings, setListings] = useState<any[]>([])
   const [vendors, setVendors] = useState<any[]>([])
-  const [bookings, setBookings] = useState<any[]>([]) // STATE FOR BOOKINGS
+  const [bookings, setBookings] = useState<any[]>([]) 
   const [isLoading, setIsLoading] = useState(true)
 
   // Edit Vendor Modal States
@@ -24,13 +22,17 @@ export default function AdminDashboard() {
   const [editCompany, setEditCompany] = useState('')
   const [editAddress, setEditAddress] = useState('')
 
+  // 🌟 NEW: Edit Booking Modal States
+  const [editingBooking, setEditingBooking] = useState<any>(null)
+  const [editCustomerName, setEditCustomerName] = useState('')
+  const [editCustomerMobile, setEditCustomerMobile] = useState('')
+
   const router = useRouter()
 
   useEffect(() => {
     checkAdmin()
   }, [])
 
-  // 🌟 FIX: Improved Loading State & Promise.all for faster, safer fetching
   async function checkAdmin() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -50,7 +52,6 @@ export default function AdminDashboard() {
         return
       }
 
-      // Call all fetch functions simultaneously
       await Promise.all([
         fetchVendors(),
         fetchListings(),
@@ -63,7 +64,10 @@ export default function AdminDashboard() {
     }
   }
 
-  // 1. Fetch Bookings 
+  // ============================
+  // BOOKINGS / LEADS FUNCTIONS
+  // ============================
+  
   async function fetchBookings() {
     const { data } = await supabase
       .from('bookings')
@@ -72,7 +76,6 @@ export default function AdminDashboard() {
     if (data) setBookings(data)
   }
 
-  // 2. Update Booking Status (Added silent RLS fail check)
   async function updateBookingStatus(id: string, newStatus: string) {
     const { data, error } = await supabase
       .from('bookings')
@@ -89,7 +92,57 @@ export default function AdminDashboard() {
     }
   }
 
-  // 3. Fetch Vendors (Partners)
+  // 🌟 NEW: Delete Booking Lead
+  async function deleteBooking(id: string) {
+    if (!window.confirm("WARNING: Kya aap sach mein is lead/booking ko permanently delete karna chahte hain?")) return
+
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      alert("Error deleting booking: " + error.message)
+    } else {
+      fetchBookings()
+    }
+  }
+
+  // 🌟 NEW: Open Booking Edit Modal
+  const openEditBookingModal = (booking: any) => {
+    setEditingBooking(booking)
+    setEditCustomerName(booking.customer_name || '')
+    setEditCustomerMobile(booking.customer_mobile || '')
+  }
+
+  // 🌟 NEW: Save Edited Booking Details
+  async function handleUpdateBooking(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingBooking) return
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ 
+        customer_name: editCustomerName, 
+        customer_mobile: editCustomerMobile
+      })
+      .eq('id', editingBooking.id)
+      .select()
+
+    if (error) {
+      alert("Error updating booking: " + error.message)
+    } else if (!data || data.length === 0) {
+      alert("Warning: Update blocked by RLS policy. Make sure Admins have UPDATE access to bookings.")
+    } else {
+      setEditingBooking(null)
+      fetchBookings()
+    }
+  }
+
+  // ============================
+  // VENDORS FUNCTIONS
+  // ============================
+  
   async function fetchVendors() {
     const { data } = await supabase
       .from('profiles')
@@ -99,16 +152,6 @@ export default function AdminDashboard() {
     if (data) setVendors(data)
   }
 
-  // 4. Fetch Listings
-  async function fetchListings() {
-    const { data } = await supabase
-      .from('listings')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (data) setListings(data)
-  }
-
-  // 5. Update Vendor Account Status & Send Approval Email (Added silent RLS fail check)
   async function updateVendorStatus(id: string, newStatus: string, vendorEmail?: string, vendorName?: string) {
     const { data, error } = await supabase
       .from('profiles')
@@ -121,9 +164,6 @@ export default function AdminDashboard() {
     } else if (!data || data.length === 0) {
       alert("Warning: No rows were updated. Please check your Supabase RLS policies for Profiles.")
     } else {
-      console.log("Status updated successfully:", data)
-      
-      // 🌟 Send Approval Email when status changes to 'approved'
       if (newStatus === 'approved' && vendorEmail) {
         try {
           await fetch('/api/send-approval-email', {
@@ -139,12 +179,10 @@ export default function AdminDashboard() {
           console.error("Email sending failed:", mailErr)
         }
       }
-
-      fetchVendors() // Refresh the vendor list instantly
+      fetchVendors()
     }
   }
 
-  // 6. Delete Vendor
   async function deleteVendor(id: string) {
     if (!window.confirm("WARNING: Kya aap sach mein is vendor ko delete karna chahte hain? Inki saari listings bhi remove ho sakti hain.")) return
 
@@ -160,7 +198,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Open Edit Vendor Modal
   const openEditVendorModal = (vendor: any) => {
     setEditingVendor(vendor)
     setEditName(vendor.full_name || '')
@@ -170,7 +207,6 @@ export default function AdminDashboard() {
     setEditAddress(vendor.address || '')
   }
 
-  // Save Edited Vendor Details
   async function handleUpdateVendor(e: React.FormEvent) {
     e.preventDefault()
     if (!editingVendor) return
@@ -194,7 +230,18 @@ export default function AdminDashboard() {
     }
   }
 
-  // 7. Update Listing Status (Added silent RLS fail check)
+  // ============================
+  // LISTINGS FUNCTIONS
+  // ============================
+  
+  async function fetchListings() {
+    const { data } = await supabase
+      .from('listings')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setListings(data)
+  }
+
   async function updateListingStatus(id: string, newStatus: string) {
     const { data, error } = await supabase
       .from('listings')
@@ -207,12 +254,10 @@ export default function AdminDashboard() {
     } else if (!data || data.length === 0) {
       alert("Warning: No rows were updated. Please check your Supabase RLS policies for Listings.")
     } else {
-      console.log("Listing status updated successfully:", data)
-      fetchListings() // Immediately refresh listings table
+      fetchListings() 
     }
   }
 
-  // Delete Listing Permanently
   async function deleteListing(id: string) {
     if (!window.confirm("WARNING: Kya aap sach mein is listing ko permanently delete karna chahte hain? Yeh wapas recover nahi hogi.")) return
 
@@ -224,11 +269,10 @@ export default function AdminDashboard() {
     if (error) {
       alert("Error deleting listing: " + error.message)
     } else {
-      fetchListings() // Table update karne ke liye
+      fetchListings() 
     }
   }
 
-  // Helper to determine Edit URL
   const getEditUrl = (listing: any) => {
     const cat = listing.category
     if (cat === 'tour') return `/add-listing/tour?edit=${listing.id}`
@@ -239,7 +283,6 @@ export default function AdminDashboard() {
     return `/vendor`
   }
 
-  // Helper to determine View URL
   const getViewUrl = (listing: any) => {
     const slug = listing.slug || listing.id
     if (listing.category === 'tour') return `/tour/${slug}`
@@ -255,7 +298,6 @@ export default function AdminDashboard() {
     router.push('/login')
   }
 
-  // Sub-tabs categories configuration
   const listingCategories = [
     { id: 'all', label: 'All Listings' },
     { id: 'destination', label: 'Tourist Places' },
@@ -272,16 +314,13 @@ export default function AdminDashboard() {
 
   const displayedListings = listings.filter(listing => {
     const matchesCategory = activeListingCategory === 'all' ? true : listing.category === activeListingCategory;
-    
     const q = searchQuery.toLowerCase();
     const title = typeof listing.title === 'string' ? listing.title.toLowerCase() : '';
     const location = typeof listing.location === 'string' ? listing.location.toLowerCase() : '';
     const matchesSearch = title.includes(q) || location.includes(q);
-
     return matchesCategory && matchesSearch;
   });
 
-  // 🌟 FIX: Safe location string formatter to prevent dashboard crash
   const formatLocationForList = (locStr: any) => {
     if (!locStr) return 'Online / Blog'
     if (Array.isArray(locStr)) return locStr.join(', ')
@@ -330,7 +369,9 @@ export default function AdminDashboard() {
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Customer Details</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Service Inquired</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Extra Details</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                    {/* 🌟 NEW: Actions Column Header */}
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -360,7 +401,7 @@ export default function AdminDashboard() {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium">
+                      <td className="px-6 py-4 text-left text-sm font-medium">
                         <select 
                           className={`text-xs font-bold rounded-lg px-2 py-1 outline-none border-2 ${
                             booking.status === 'New' ? 'border-red-200 bg-red-50 text-red-700' : 
@@ -374,6 +415,11 @@ export default function AdminDashboard() {
                           <option value="Contacted">🟡 Contacted</option>
                           <option value="Completed">🟢 Completed</option>
                         </select>
+                      </td>
+                      {/* 🌟 NEW: Edit & Delete Buttons for Bookings */}
+                      <td className="px-6 py-4 text-right text-sm font-medium space-x-2 whitespace-nowrap">
+                        <button onClick={() => openEditBookingModal(booking)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</button>
+                        <button onClick={() => deleteBooking(booking.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md inline-block">🗑️ Del</button>
                       </td>
                     </tr>
                   ))}
@@ -531,6 +577,34 @@ export default function AdminDashboard() {
 
         </div>
       </div>
+
+      {/* 🌟 NEW: EDIT BOOKING MODAL POPUP */}
+      {editingBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-extrabold text-gray-900">Edit Customer Details</h2>
+              <button onClick={() => setEditingBooking(null)} className="text-gray-400 hover:text-red-500 text-xl font-bold">✕</button>
+            </div>
+            
+            <form onSubmit={handleUpdateBooking} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Customer Name</label>
+                <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editCustomerName} onChange={(e) => setEditCustomerName(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Customer Mobile</label>
+                <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editCustomerMobile} onChange={(e) => setEditCustomerMobile(e.target.value)} />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                <button type="button" onClick={() => setEditingBooking(null)} className="bg-gray-100 text-gray-700 font-bold px-5 py-2.5 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                <button type="submit" className="bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-blue-700 shadow-md transition-all active:scale-95">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* EDIT VENDOR MODAL POPUP */}
       {editingVendor && (
