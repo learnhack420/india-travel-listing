@@ -22,7 +22,7 @@ export default function AdminDashboard() {
   const [editCompany, setEditCompany] = useState('')
   const [editAddress, setEditAddress] = useState('')
 
-  // 🌟 NEW: Edit Booking Modal States
+  // 🌟 Edit Booking Modal States
   const [editingBooking, setEditingBooking] = useState<any>(null)
   const [editCustomerName, setEditCustomerName] = useState('')
   const [editCustomerMobile, setEditCustomerMobile] = useState('')
@@ -92,7 +92,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // 🌟 NEW: Delete Booking Lead
   async function deleteBooking(id: string) {
     if (!window.confirm("WARNING: Kya aap sach mein is lead/booking ko permanently delete karna chahte hain?")) return
 
@@ -108,14 +107,12 @@ export default function AdminDashboard() {
     }
   }
 
-  // 🌟 NEW: Open Booking Edit Modal
   const openEditBookingModal = (booking: any) => {
     setEditingBooking(booking)
     setEditCustomerName(booking.customer_name || '')
     setEditCustomerMobile(booking.customer_mobile || '')
   }
 
-  // 🌟 NEW: Save Edited Booking Details
   async function handleUpdateBooking(e: React.FormEvent) {
     e.preventDefault()
     if (!editingBooking) return
@@ -370,7 +367,6 @@ export default function AdminDashboard() {
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Service Inquired</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Extra Details</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                    {/* 🌟 NEW: Actions Column Header */}
                     <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -416,7 +412,6 @@ export default function AdminDashboard() {
                           <option value="Completed">🟢 Completed</option>
                         </select>
                       </td>
-                      {/* 🌟 NEW: Edit & Delete Buttons for Bookings */}
                       <td className="px-6 py-4 text-right text-sm font-medium space-x-2 whitespace-nowrap">
                         <button onClick={() => openEditBookingModal(booking)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</button>
                         <button onClick={() => deleteBooking(booking.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md inline-block">🗑️ Del</button>
@@ -540,7 +535,13 @@ export default function AdminDashboard() {
                           <div className="text-sm text-gray-600 font-bold">{listing.category === 'destination' || listing.category === 'blog' ? 'Free / Info' : `₹${listing.price}`}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${listing.status === 'approved' ? 'bg-green-100 text-green-800' : listing.status === 'declined' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {/* 🌟 Draft handling inside the status pill */}
+                          <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${
+                            listing.status === 'approved' ? 'bg-green-100 text-green-800' : 
+                            listing.status === 'declined' ? 'bg-red-100 text-red-800' : 
+                            listing.status === 'draft' ? 'bg-gray-100 text-gray-800' : 
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
                             {listing.status}
                           </span>
                         </td>
@@ -557,7 +558,8 @@ export default function AdminDashboard() {
                             <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
                           )}
                           
-                          {listing.status === 'declined' && (
+                          {/* 🌟 NEW: Added listing.status === 'draft' condition here to show delete button */}
+                          {(listing.status === 'declined' || listing.status === 'draft') && (
                             <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
                           )}
                         </td>
@@ -578,7 +580,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* 🌟 NEW: EDIT BOOKING MODAL POPUP */}
+      {/* EDIT BOOKING MODAL POPUP */}
       {editingBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">

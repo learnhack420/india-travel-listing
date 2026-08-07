@@ -21,6 +21,9 @@ function TourFormContent() {
   const [userRole, setUserRole] = useState('') 
   const [message, setMessage] = useState({ type: '', text: '' })
 
+  // 🌟 NEW: Track button action (draft or publish)
+  const [submitAction, setSubmitAction] = useState('publish')
+
   // 1. Basic Info & SEO States
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
@@ -28,7 +31,7 @@ function TourFormContent() {
   
   // Thumbnail & Metadata
   const [thumbnail, setThumbnail] = useState('')
-  const [isUploadingThumb, setIsUploadingThumb] = useState(false) // 🌟 New state for thumbnail upload loader
+  const [isUploadingThumb, setIsUploadingThumb] = useState(false)
 
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
@@ -65,7 +68,7 @@ function TourFormContent() {
 
   // 4. Image Gallery
   const [gallery, setGallery] = useState([''])
-  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null) // 🌟 New state for gallery upload loader
+  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null)
 
   // 5. FAQs State
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
@@ -84,6 +87,7 @@ function TourFormContent() {
 
   useEffect(() => {
     checkVendorAndLoadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId])
 
   async function checkVendorAndLoadData() {
@@ -180,13 +184,10 @@ function TourFormContent() {
     setLoading(false)
   }
 
-  // 🌟 NAYA FUNCTION: Image upload offloading to ImgBB (Free, No storage limit on your server)
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
     
-    // IMPORTANT: Get a free API key from https://api.imgbb.com/ and paste it here, 
-    // or add it in your .env file as NEXT_PUBLIC_IMGBB_API_KEY
     const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
     
     try {
@@ -196,7 +197,7 @@ function TourFormContent() {
       })
       const data = await response.json()
       if (data.success) {
-        return data.data.url // Returns the direct image URL
+        return data.data.url 
       } else {
         throw new Error('Upload failed')
       }
@@ -229,7 +230,6 @@ function TourFormContent() {
     setUploadingGalleryIndex(null)
   }
 
-  // --- BAKI SARE HANDLERS WAISE HI HAIN ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
@@ -293,6 +293,22 @@ function TourFormContent() {
       setBestMonths(bestMonths.filter(m => m !== month))
     } else {
       setBestMonths([...bestMonths, month])
+    }
+  }
+
+  // 🌟 NEW: Handles permanent deletion of the draft/listing
+  const handleDeleteListing = async () => {
+    if (!window.confirm("WARNING: Kya aap sach mein is tour package ko delete karna chahte hain? Yeh wapas recover nahi hoga.")) return
+
+    setSubmitting(true)
+    const { error } = await supabase.from("listings").delete().eq("id", editId)
+    
+    if (error) {
+      alert("Error deleting listing: " + error.message)
+      setSubmitting(false)
+    } else {
+      alert("Tour package deleted successfully!")
+      router.push(userRole === 'admin' ? "/admin" : "/vendor")
     }
   }
 
@@ -418,6 +434,12 @@ ${formattedFaqs}
       }
     }
 
+    // 🌟 NEW: Determine Final Status based on button clicked
+    let finalStatus = "draft";
+    if (submitAction === "publish") {
+      finalStatus = userRole === "admin" ? "approved" : "pending";
+    }
+
     let error;
 
     const dbPayload = {
@@ -426,6 +448,7 @@ ${formattedFaqs}
       location: fullLocationString, 
       price: parseFloat(price),
       description: detailedDescription,
+      status: finalStatus, // Add the calculated status
       metadata: metadata
     }
 
@@ -442,7 +465,6 @@ ${formattedFaqs}
           ...dbPayload,
           vendor_id: vendorId,
           category: 'tour',
-          status: 'pending',
         }])
       error = res.error
     }
@@ -456,7 +478,8 @@ ${formattedFaqs}
       setSubmitting(false)
     } else {
 
-      if (!editId) {
+      // Only send email if a new item is submitted for approval (not saved as draft)
+      if (!editId && submitAction === 'publish') {
         fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -474,7 +497,7 @@ ${formattedFaqs}
         }).catch(err => console.error("Email bhejte waqt error aaya:", err))
       }
 
-      setMessage({ type: 'success', text: editId ? 'Tour package successfully update ho gaya hai!' : 'Tour package successfully add ho gaya hai! Admin approval ke liye bhej diya gaya hai.' })
+      setMessage({ type: 'success', text: submitAction === 'draft' ? '✅ Draft saved successfully!' : (editId ? '✅ Tour package successfully updated!' : '✅ Tour package submitted for approval!') })
       setSubmitting(false)
       
       setTimeout(() => {
@@ -586,7 +609,6 @@ ${formattedFaqs}
                 </div>
               </div>
 
-              {/* 🌟 THUMBNAIL UPLOAD FIX HERE */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Starting Price (₹)</label>
@@ -774,7 +796,6 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* 🌟 GALLERY UPLOAD FIX HERE */}
             <div>
               <div className="flex justify-between items-center border-b pb-2 mb-6">
                 <h2 className="text-xl font-bold text-gray-800">7. Tour Gallery</h2>
@@ -825,9 +846,39 @@ ${formattedFaqs}
               <button type="button" onClick={addFaq} className="mt-2 text-sm bg-blue-100 text-blue-700 font-bold px-4 py-2 rounded-full hover:bg-blue-200">+ Add FAQ</button>
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors disabled:bg-blue-400 text-lg shadow-lg">
-              {submitting ? 'Saving...' : (editId ? 'Update Tour Package' : 'Submit Tour Package')}
-            </button>
+            {/* 🌟 NEW: Action Buttons (Delete, Save Draft, Publish) */}
+            <div className="pt-6 border-t flex flex-col md:flex-row gap-4 mt-8">
+              
+              {editId && (
+                <button 
+                  type="button" 
+                  onClick={handleDeleteListing}
+                  disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null}
+                  className="w-full md:w-1/4 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-4 rounded-2xl font-black text-lg transition-transform hover:scale-[1.01]"
+                >
+                  🗑️ Delete
+                </button>
+              )}
+
+              <button 
+                type="submit" 
+                onClick={() => setSubmitAction("draft")}
+                disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
+                className="w-full md:w-auto flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-2xl font-black text-lg shadow-sm transition-transform hover:scale-[1.01]"
+              >
+                💾 Save as Draft
+              </button>
+
+              <button 
+                type="submit" 
+                onClick={() => setSubmitAction("publish")}
+                disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
+                className="w-full md:w-auto flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform hover:scale-[1.01] disabled:bg-blue-400"
+              >
+                {submitting ? "Processing..." : (userRole === "admin" ? "🚀 Publish Now" : "🚀 Submit for Approval")}
+              </button>
+            </div>
+            
           </form>
         </div>
       </div>

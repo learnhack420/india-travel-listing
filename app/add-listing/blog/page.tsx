@@ -21,6 +21,9 @@ function BlogFormContent() {
   const [vendorId, setVendorId] = useState('')
   const [userRole, setUserRole] = useState('')
 
+  // 🌟 NEW: Track button action (draft or publish)
+  const [submitAction, setSubmitAction] = useState('publish')
+
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
@@ -311,6 +314,22 @@ function BlogFormContent() {
     setFaqItems(newFaqs)
   }
 
+  // 🌟 NEW: Handles permanent deletion of the draft/listing
+  const handleDeleteListing = async () => {
+    if (!window.confirm("WARNING: Kya aap sach mein is blog article ko delete karna chahte hain? Yeh wapas recover nahi hoga.")) return
+
+    setSubmitting(true)
+    const { error } = await supabase.from("listings").delete().eq("id", editId)
+    
+    if (error) {
+      alert("Error deleting article: " + error.message)
+      setSubmitting(false)
+    } else {
+      alert("Blog article deleted successfully!")
+      router.push(userRole === 'admin' ? "/admin" : "/vendor")
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!category) return alert("Please select or add a category!")
@@ -333,11 +352,18 @@ function BlogFormContent() {
       metaKeywords
     }
 
+    // 🌟 NEW: Determine Final Status based on button clicked
+    let finalStatus = "draft";
+    if (submitAction === "publish") {
+      finalStatus = userRole === "admin" ? "approved" : "pending";
+    }
+
     const dbPayload = {
       title: title,
       slug: slug,
       description: longDescription,
       location: location || null, 
+      status: finalStatus, // Add the calculated status
       metadata: metadata
     }
 
@@ -357,7 +383,6 @@ function BlogFormContent() {
           vendor_id: vendorId,
           category: 'blog', 
           price: 0,
-          status: 'approved', 
         }])
       error = res.error
     }
@@ -370,9 +395,28 @@ function BlogFormContent() {
       }
       setSubmitting(false)
     } else {
-      setMessage({ type: 'success', text: editId ? 'Blog article successfully updated!' : 'Blog article successfully published!' })
+      
+      // Send email if a new article is submitted for approval
+      if (!editId && submitAction === 'publish') {
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'New Blog Article Added 📝',
+            data: {
+              Article_Title: title,
+              Category: category,
+              Vendor_ID: vendorId,
+              Action: 'Please review and approve from Admin Panel'
+            }
+          })
+        }).catch(err => console.error("Email bhejte waqt error aaya:", err))
+      }
+
+      setMessage({ type: 'success', text: submitAction === 'draft' ? '✅ Draft saved successfully!' : (editId ? '✅ Blog article successfully updated!' : '✅ Blog article successfully published!') })
       setSubmitting(false)
-      setTimeout(() => { router.push('/admin') }, 2000)
+      
+      setTimeout(() => { router.push(userRole === 'admin' ? '/admin' : '/vendor') }, 2000)
     }
   }
 
@@ -387,8 +431,8 @@ function BlogFormContent() {
             <h1 className="text-2xl font-extrabold">{editId ? 'Edit Blog Article' : 'Add New Blog Article'}</h1>
             <p className="text-indigo-100 text-sm mt-1">Create an SEO-friendly blog post with rich text, FAQs and categories</p>
           </div>
-          <Link href="/admin" className="bg-indigo-700 hover:bg-indigo-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
-            ← Back to Admin
+          <Link href={userRole === 'admin' ? '/admin' : '/vendor'} className="bg-indigo-700 hover:bg-indigo-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+            ← Back
           </Link>
         </div>
 
@@ -622,9 +666,39 @@ function BlogFormContent() {
               </button>
             </div>
 
-            <button type="submit" disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 text-lg shadow-lg transition-transform transform hover:scale-[1.01] disabled:bg-indigo-400">
-              {submitting ? 'Saving Changes...' : (editId ? 'Update Blog Article' : 'Publish Blog Article')}
-            </button>
+            {/* 🌟 NEW: Action Buttons (Delete, Save Draft, Publish) */}
+            <div className="pt-6 border-t flex flex-col md:flex-row gap-4 mt-8">
+              
+              {editId && (
+                <button 
+                  type="button" 
+                  onClick={handleDeleteListing}
+                  disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null}
+                  className="w-full md:w-1/4 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-4 rounded-2xl font-black text-lg transition-transform hover:scale-[1.01]"
+                >
+                  🗑️ Delete
+                </button>
+              )}
+
+              <button 
+                type="submit" 
+                onClick={() => setSubmitAction("draft")}
+                disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
+                className="w-full md:w-auto flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-2xl font-black text-lg shadow-sm transition-transform hover:scale-[1.01]"
+              >
+                💾 Save as Draft
+              </button>
+
+              <button 
+                type="submit" 
+                onClick={() => setSubmitAction("publish")}
+                disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
+                className="w-full md:w-auto flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform hover:scale-[1.01] disabled:bg-indigo-400"
+              >
+                {submitting ? 'Processing...' : (userRole === "admin" ? "🚀 Publish Now" : "🚀 Submit for Approval")}
+              </button>
+            </div>
+            
           </form>
         </div>
       </div>

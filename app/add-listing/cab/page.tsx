@@ -15,7 +15,11 @@ function CabFormContent() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [vendorId, setVendorId] = useState('')
+  const [userRole, setUserRole] = useState('')
   const [message, setMessage] = useState({ type: '', text: '' })
+
+  // 🌟 NEW: Track button action (draft or publish)
+  const [submitAction, setSubmitAction] = useState('publish')
 
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('') 
@@ -96,6 +100,7 @@ function CabFormContent() {
     }
 
     setVendorId(session.user.id)
+    setUserRole(profile.role)
 
     if (editId) {
       const { data: listing, error } = await supabase
@@ -152,7 +157,7 @@ function CabFormContent() {
         setCustomExclusions([''])
       }
 
-      setThumbnail(meta.thumbnail || meta.gallery?.[0] || '') // 🌟 Load Thumbnail
+      setThumbnail(meta.thumbnail || meta.gallery?.[0] || '')
 
       if (meta.gallery && Array.isArray(meta.gallery) && meta.gallery.length > 0) {
         setGallery(meta.gallery)
@@ -170,7 +175,7 @@ function CabFormContent() {
     setLoading(false)
   }
 
-  // 🌟 IMGBB IMAGE UPLOAD HELPER FUNCTION (Free Image Hosting)
+  // 🌟 IMGBB IMAGE UPLOAD HELPER FUNCTION
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
@@ -195,7 +200,6 @@ function CabFormContent() {
     }
   }
 
-  // 🌟 Upload Handlers
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -259,6 +263,22 @@ function CabFormContent() {
 
   const handleCabPriceChange = (cab: string, field: string, value: string) => {
     setCabPrices(prev => ({ ...prev, [cab]: { ...prev[cab as keyof typeof cabPrices], [field]: value } }))
+  }
+
+  // 🌟 NEW: Handles permanent deletion of the draft/listing
+  const handleDeleteListing = async () => {
+    if (!window.confirm("WARNING: Kya aap sach mein is cab service ko delete karna chahte hain? Yeh wapas recover nahi hoga.")) return
+
+    setSubmitting(true)
+    const { error } = await supabase.from("listings").delete().eq("id", editId)
+    
+    if (error) {
+      alert("Error deleting listing: " + error.message)
+      setSubmitting(false)
+    } else {
+      alert("Cab service deleted successfully!")
+      router.push(userRole === 'admin' ? "/admin" : "/vendor")
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -374,7 +394,7 @@ ${formattedFaqs}
       driverDa, 
       customInclusions: cleanCustomIncl, 
       customExclusions: cleanCustomExcl, 
-      thumbnail, // 🌟 Save Thumbnail
+      thumbnail, 
       gallery: cleanGallery, 
       faqs,
       seo: {
@@ -382,6 +402,12 @@ ${formattedFaqs}
         metaDescription,
         metaKeywords
       }
+    }
+
+    // 🌟 NEW: Determine Final Status based on button clicked
+    let finalStatus = "draft";
+    if (submitAction === "publish") {
+      finalStatus = userRole === "admin" ? "approved" : "pending";
     }
 
     let error;
@@ -393,6 +419,7 @@ ${formattedFaqs}
         description: detailedDescription, 
         location: displayLocation, 
         price: lowestPrice, 
+        status: finalStatus, // Applied Draft or Publish status here
         metadata: metadata
       }).eq('id', editId)
       error = res.error
@@ -405,7 +432,7 @@ ${formattedFaqs}
         category: 'cab', 
         location: displayLocation, 
         price: lowestPrice, 
-        status: 'pending', 
+        status: finalStatus, // Applied Draft or Publish status here
         metadata: metadata
       }])
       error = res.error
@@ -415,10 +442,29 @@ ${formattedFaqs}
       setMessage({ type: 'error', text: 'Error: ' + error.message })
       setSubmitting(false)
     } else {
-      setMessage({ type: 'success', text: editId ? 'Cab Service successfully update ho gayi hai!' : 'Cab Service successfully add ho gayi hai!' })
+      
+      // Only send email if a new item is submitted for approval (not saved as draft)
+      if (!editId && submitAction === 'publish') {
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'New Cab Service Added 🚖',
+            data: {
+              Service_Name: title,
+              Trip_Type: `${mainType} (${subType})`,
+              Starting_Price: `₹${lowestPrice}`,
+              Vendor_ID: vendorId,
+              Action: 'Please review and approve from Admin Panel'
+            }
+          })
+        }).catch(err => console.error("Email error:", err))
+      }
+
+      setMessage({ type: 'success', text: submitAction === 'draft' ? '✅ Draft saved successfully!' : (editId ? '✅ Cab Service successfully updated!' : '✅ Cab Service submitted for approval!') })
       setSubmitting(false)
       setTimeout(() => { 
-        router.push('/admin')
+        router.push(userRole === 'admin' ? '/admin' : '/vendor')
       }, 1500)
     }
   }
@@ -434,7 +480,7 @@ ${formattedFaqs}
             <h1 className="text-2xl font-extrabold">{editId ? 'Edit Cab / Taxi Service' : 'Add Cab / Taxi Service'}</h1>
             <p className="text-blue-100 text-sm mt-1">Apni gaadi aur trip ki details bharein</p>
           </div>
-          <Link href="/admin" className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+          <Link href={userRole === 'admin' ? '/admin' : '/vendor'} className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
             ← Back
           </Link>
         </div>
@@ -809,9 +855,39 @@ ${formattedFaqs}
               </div>
             </div>
 
-            <button type="submit" disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 text-lg disabled:bg-blue-400">
-              {submitting ? 'Saving Changes...' : (editId ? 'Update Cab Service' : 'Submit Cab Service')}
-            </button>
+            {/* 🌟 NEW: Action Buttons (Delete, Save Draft, Publish) */}
+            <div className="pt-6 border-t flex flex-col md:flex-row gap-4 mt-8">
+              
+              {editId && (
+                <button 
+                  type="button" 
+                  onClick={handleDeleteListing}
+                  disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null}
+                  className="w-full md:w-1/4 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-4 rounded-2xl font-black text-lg transition-transform hover:scale-[1.01]"
+                >
+                  🗑️ Delete
+                </button>
+              )}
+
+              <button 
+                type="submit" 
+                onClick={() => setSubmitAction("draft")}
+                disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
+                className="w-full md:w-auto flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-2xl font-black text-lg shadow-sm transition-transform hover:scale-[1.01]"
+              >
+                💾 Save as Draft
+              </button>
+
+              <button 
+                type="submit" 
+                onClick={() => setSubmitAction("publish")}
+                disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
+                className="w-full md:w-auto flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform hover:scale-[1.01] disabled:bg-blue-400"
+              >
+                {submitting ? 'Processing...' : (userRole === "admin" ? "🚀 Publish Now" : "🚀 Submit for Approval")}
+              </button>
+            </div>
+            
           </form>
         </div>
       </div>
