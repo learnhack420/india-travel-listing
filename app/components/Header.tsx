@@ -28,8 +28,8 @@ export default function Header() {
           {/* Logo Section */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="text-2xl font-extrabold tracking-tight flex items-center">
-              <span className="text-orange-500">E-Mumbai</span> 
-              <span className="text-blue-900 ml-1">Tourism</span> 
+              <span className="text-orange-500">India</span> 
+              <span className="text-blue-900 ml-1">Tour Operators</span> 
             </Link>
           </div>
 

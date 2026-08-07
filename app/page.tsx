@@ -3,11 +3,11 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import MainSearchBox from './components/MainSearchBox'
 
-// 🌟 SEO Metadata for E-Mumbai Tourism
+// 🌟 SEO Metadata for India Tour Operators
 export const metadata: Metadata = {
-  title: 'E-Mumbai Tourism - Best Tour Packages, Cabs & Hotels',
-  description: 'Book verified Mumbai tour packages, outstation cabs, and luxury hotels with top-rated local tour operators across Mumbai, Lonavala, Pune, and Alibag at the best prices.',
-  keywords: 'Mumbai tour operators, tour packages Mumbai, cab booking Mumbai, hotel booking, travel agency Mumbai, local guides, Maharashtra tourism'
+  title: 'India Tour Operators - Best Tour Packages, Cabs & Hotels',
+  description: 'Book verified India tour packages, outstation cabs, and luxury hotels with top-rated local tour operators across top destinations at the best prices.',
+  keywords: 'India tour operators, tour packages India, cab booking India, hotel booking, travel agency, local guides, tourism portal'
 }
 
 // Helper function to remove HTML tags
@@ -20,14 +20,14 @@ const stripHtml = (html: string) => {
 const testimonials = [
   { name: "Rahul Sharma", location: "Mumbai", text: "Booked a Lonavala & Mahabaleshwar tour package through this portal. The local operator was extremely professional, and the price was 20% lower than other big sites!", rating: 5 },
   { name: "Priya Desai", location: "Pune", text: "Got an outstation cab for my Goa trip within 10 minutes. The driver was verified and the car was in top condition. Highly recommended.", rating: 5 },
-  { name: "Amit Patel", location: "Ahmedabad", text: "Finding authentic local tour guides for Mumbai darshan used to be hard. This platform made it so easy to compare prices and book a luxury hotel safely.", rating: 5 }
+  { name: "Amit Patel", location: "Ahmedabad", text: "Finding authentic local tour guides used to be hard. This platform made it so easy to compare prices and book a luxury hotel safely.", rating: 5 }
 ];
 
 // 🌟 Extended FAQs for Better SEO & User Trust
 const homeFaqs = [
-  { q: "Why should I book through E-Mumbai Tourism?", a: "We connect you directly with verified local tour operators in Mumbai and Maharashtra, cutting out middlemen to ensure authentic experiences at the best guaranteed prices." },
+  { q: "Why should I book through India Tour Operators?", a: "We connect you directly with verified local tour operators across India, cutting out middlemen to ensure authentic experiences at the best guaranteed prices." },
   { q: "Are the outstation cabs and drivers verified?", a: "Yes, all our cab partners and drivers undergo a strict background check. We prioritize your safety, comfort, and reliability for outstation and local trips." },
-  { q: "Can I customize my Mumbai tour package?", a: "Absolutely! Most of our local travel partners offer fully customizable itineraries based on your budget, days, and personal preferences." },
+  { q: "Can I customize my tour package?", a: "Absolutely! Most of our local travel partners offer fully customizable itineraries based on your budget, days, and personal preferences." },
   { q: "Are there any hidden booking fees?", a: "No! We believe in 100% transparency. The prices you see are directly from local operators with zero hidden charges or surprise platform fees." },
   { q: "How do I know the travel agents are genuine?", a: "We have a rigorous vetting process. Every travel agency, hotel, and cab provider listed on our portal is manually verified for quality, safety, and customer satisfaction." },
   { q: "What if I need help during my trip?", a: "We provide 24/7 expert customer support. In case of any emergencies or queries during your travel, our dedicated team is always just a call away to assist you." }
@@ -112,13 +112,13 @@ export default async function Home() {
 
         <div className="relative z-10 max-w-4xl mx-auto text-center mb-12">
           <span className="inline-block bg-orange-500/20 border border-orange-500/50 text-orange-400 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm mb-6">
-            Official E-Mumbai Tourism Portal
+            Official India Tour Operators Portal
           </span>
           <h1 className="text-4xl md:text-6xl font-black mt-2 mb-6 leading-tight tracking-tight drop-shadow-lg">
-            Explore Mumbai & Beyond with <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-300">Expert Locals</span>
+            Explore India & Beyond with <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-300">Expert Locals</span>
           </h1>
           <p className="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto font-medium opacity-90">
-            Book verified holiday packages, comfortable outstation cabs, and premium hotels handpicked for your ultimate Maharashtra vacation.
+            Book verified holiday packages, comfortable outstation cabs, and premium hotels handpicked for your ultimate Indian vacation.
           </p>
         </div>
 
@@ -212,7 +212,7 @@ export default async function Home() {
                         </div>
                         
                         <div className="mt-6 flex justify-between items-end border-t border-slate-100 pt-5">
-                          <span className="text-slate-500 text-sm font-bold flex items-center truncate max-w-[55%]">📍 {listing.location ? listing.location.split(',')[0] : 'Mumbai'}</span>
+                          <span className="text-slate-500 text-sm font-bold flex items-center truncate max-w-[55%]">📍 {listing.location ? listing.location.split(',')[0] : 'India'}</span>
                           <div className="text-right">
                             {isInfoContent ? (
                               <span className="block text-sm font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-colors">Explore →</span>
@@ -295,15 +295,15 @@ export default async function Home() {
               <div className="relative z-10 text-center max-w-4xl mx-auto">
                 <span className="text-blue-500 text-5xl mb-6 block drop-shadow-sm">✨</span>
                 <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-8 tracking-tight">
-                  Why Choose E-Mumbai Tourism?
+                  Why Choose India Tour Operators?
                 </h2>
                 
                 <div className="space-y-6 text-slate-600 text-lg md:text-xl leading-relaxed font-medium">
                   <p>
-                    Welcome to <strong className="text-slate-900 font-black">E-Mumbai Tourism</strong>, the leading aggregator platform connecting travelers with verified, top-rated local travel agencies across Mumbai and Maharashtra. Whether you are looking for customized <strong className="text-blue-600 font-black">Mumbai tour packages</strong>, reliable <strong className="text-blue-600 font-black">outstation cab booking</strong> services, or luxurious yet affordable <strong className="text-blue-600 font-black">hotel bookings</strong>, we have everything organized in one place.
+                    Welcome to <strong className="text-slate-900 font-black">India Tour Operators</strong>, the leading aggregator platform connecting travelers with verified, top-rated local travel agencies across India. Whether you are looking for customized <strong className="text-blue-600 font-black">tour packages</strong>, reliable <strong className="text-blue-600 font-black">outstation cab booking</strong> services, or luxurious yet affordable <strong className="text-blue-600 font-black">hotel bookings</strong>, we have everything organized in one place.
                   </p>
                   <p>
-                    Our platform eliminates the middleman, ensuring that you get the most authentic travel experiences directly from local experts at highly competitive prices. Explore detailed <strong className="text-slate-800 font-bold border-b-2 border-amber-300">tourist place guides</strong>, read our expert <strong className="text-slate-800 font-bold border-b-2 border-amber-300">travel blogs</strong>, and plan your next vacation to trending destinations like Lonavala, Pune, Alibag, and Mahabaleshwar with complete peace of mind.
+                    Our platform eliminates the middleman, ensuring that you get the most authentic travel experiences directly from local experts at highly competitive prices. Explore detailed <strong className="text-slate-800 font-bold border-b-2 border-amber-300">tourist place guides</strong>, read our expert <strong className="text-slate-800 font-bold border-b-2 border-amber-300">travel blogs</strong>, and plan your next vacation with complete peace of mind.
                   </p>
                 </div>
               </div>
@@ -318,7 +318,7 @@ export default async function Home() {
           <div className="text-center md:text-left">
             <h2 className="text-3xl md:text-5xl font-black mb-4 drop-shadow-md">Are you a Travel Expert?</h2>
             <p className="text-blue-100 text-lg md:text-xl font-medium max-w-xl">
-              List your tour packages, hotels, and cabs on Mumbai's fastest-growing travel network and reach thousands of daily tourists.
+              List your tour packages, hotels, and cabs on India's fastest-growing travel network and reach thousands of daily tourists.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
