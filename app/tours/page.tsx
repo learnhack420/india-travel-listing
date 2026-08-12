@@ -26,8 +26,10 @@ export default function ToursListingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  // 🌟 NEW: Search query state
-  const [searchQuery, setSearchQuery] = useState('')
+  // 🌟 NEW: Advanced Search states
+  const [keyword, setKeyword] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
 
   useEffect(() => {
     fetchTours()
@@ -71,19 +73,33 @@ export default function ToursListingPage() {
     }
   }
 
-  // 🌟 NEW: Real-time filtering logic
+  // 🌟 NEW: Advanced Real-time filtering logic
   const filteredTours = tours.filter(tour => {
-    const query = searchQuery.toLowerCase()
-    const titleMatch = (tour.title || '').toLowerCase().includes(query)
-    const locationMatch = (tour.location || '').toLowerCase().includes(query)
-    return titleMatch || locationMatch
+    const kw = keyword.toLowerCase()
+    const ct = city.toLowerCase()
+    const st = state.toLowerCase()
+
+    const title = (tour.title || '').toLowerCase()
+    const loc = (tour.location || '').toLowerCase()
+
+    const matchesKeyword = kw === '' || title.includes(kw) || loc.includes(kw)
+    const matchesCity = ct === '' || loc.includes(ct)
+    const matchesState = st === '' || loc.includes(st)
+
+    return matchesKeyword && matchesCity && matchesState
   })
+
+  const clearSearch = () => {
+    setKeyword('')
+    setCity('')
+    setState('')
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-amber-100 selection:text-amber-900">
       
       {/* --- PRO HERO SECTION --- */}
-      <section className="relative bg-slate-900 text-white pt-20 pb-28 px-6 text-center overflow-hidden">
+      <section className="relative bg-slate-900 text-white pt-20 pb-32 px-6 text-center overflow-hidden">
         {/* Subtle background gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-amber-600/90 to-slate-900/90 z-0"></div>
         
@@ -100,18 +116,48 @@ export default function ToursListingPage() {
         </div>
       </section>
 
-      {/* 🌟 NEW: PREMIUM SEARCH BAR OVERLAPPING HERO SECTION */}
-      <div className="max-w-4xl mx-auto px-4 md:px-8 -mt-10 relative z-20 mb-8">
-        <div className="bg-white p-2.5 rounded-2xl shadow-xl border border-slate-200 flex items-center gap-2">
-          <span className="pl-4 text-2xl text-slate-400">🔍</span>
-          <input 
-            type="text" 
-            placeholder="Search tours by name or location (e.g. Kerala, Manali)..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-3 outline-none text-slate-800 font-bold placeholder:font-medium placeholder:text-slate-400 bg-transparent text-lg"
-          />
-          <button className="bg-slate-900 hover:bg-black text-amber-400 font-black px-8 py-3.5 rounded-xl shadow-md transition-all active:scale-95 hidden md:block">
+      {/* 🌟 ADVANCED MULTI-FIELD SEARCH BAR */}
+      <div className="max-w-6xl mx-auto px-4 md:px-8 -mt-16 relative z-20 mb-8">
+        <div className="bg-white p-4 rounded-[2rem] shadow-xl border border-slate-200 flex flex-col md:flex-row items-center gap-3">
+          
+          {/* Keyword Field */}
+          <div className="flex-1 flex items-center gap-3 bg-slate-50 px-5 py-4 rounded-2xl border border-slate-100 w-full">
+            <span className="text-xl">🔍</span>
+            <input 
+              type="text" 
+              placeholder="Search tours..." 
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="w-full bg-transparent outline-none text-slate-800 font-bold placeholder:font-medium placeholder:text-slate-400"
+            />
+          </div>
+
+          {/* City Field */}
+          <div className="flex-1 flex items-center gap-3 bg-slate-50 px-5 py-4 rounded-2xl border border-slate-100 w-full">
+            <span className="text-xl">🏙️</span>
+            <input 
+              type="text" 
+              placeholder="City (e.g. Mumbai)" 
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="w-full bg-transparent outline-none text-slate-800 font-bold placeholder:font-medium placeholder:text-slate-400"
+            />
+          </div>
+
+          {/* State Field */}
+          <div className="flex-1 flex items-center gap-3 bg-slate-50 px-5 py-4 rounded-2xl border border-slate-100 w-full">
+            <span className="text-xl">🗺️</span>
+            <input 
+              type="text" 
+              placeholder="State (e.g. Kerala)" 
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              className="w-full bg-transparent outline-none text-slate-800 font-bold placeholder:font-medium placeholder:text-slate-400"
+            />
+          </div>
+
+          {/* Search Button */}
+          <button className="bg-slate-900 hover:bg-black text-amber-400 font-black px-8 py-4 rounded-2xl shadow-md transition-all active:scale-95 w-full md:w-auto shrink-0 flex justify-center items-center gap-2">
             Search
           </button>
         </div>
@@ -164,13 +210,13 @@ export default function ToursListingPage() {
           
         ) : filteredTours.length === 0 ? (
           
-          /* 🌟 NEW: No search results found state */
+          /* No search results found state */
           <div className="text-center py-24 bg-white rounded-3xl shadow-sm border border-slate-100 px-8 max-w-2xl mx-auto mt-12">
             <div className="text-6xl mb-6">🔍</div>
             <h3 className="text-2xl font-black text-slate-800 mb-2">No Match Found</h3>
-            <p className="text-slate-500 mb-8 text-lg">We couldn&apos;t find any tours matching &quot;<span className="font-bold text-slate-700">{searchQuery}</span>&quot;.</p>
+            <p className="text-slate-500 mb-8 text-lg">We couldn&apos;t find any tours matching your criteria.</p>
             <button 
-              onClick={() => setSearchQuery('')}
+              onClick={clearSearch}
               className="inline-flex items-center gap-2 bg-amber-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-amber-600 transition-all shadow-md hover:shadow-lg active:scale-95"
             >
               Clear Search
@@ -180,7 +226,6 @@ export default function ToursListingPage() {
         ) : (
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
-            {/* 🌟 CHANGED: Now mapping over filteredTours instead of tours */}
             {filteredTours.map((tour) => {
               const meta = tour.metadata || {}
               
