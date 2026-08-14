@@ -30,11 +30,14 @@ export default function LocationSelector({ label, selected, onChange, multiple =
   
   // Smart Inline Add States
   const [isInlineAdding, setIsInlineAdding] = useState(false)
-  const [areaInput, setAreaInput] = useState('') // Optional Area/Landmark
-  const [cityInput, setCityInput] = useState('') // City name
+  const [areaInput, setAreaInput] = useState('') 
+  const [cityInput, setCityInput] = useState('') 
   const [stateName, setStateName] = useState('Maharashtra')
   const [country, setCountry] = useState('India')
+  
+  // Dropdown visibility states
   const [stateSearchOpen, setStateSearchOpen] = useState(false)
+  const [citySearchOpen, setCitySearchOpen] = useState(false)
 
   useEffect(() => {
     fetchLocations()
@@ -57,6 +60,29 @@ export default function LocationSelector({ label, selected, onChange, multiple =
     )
   }, [stateName])
 
+  // 🌟 NEW: Extract Unique Cities from existing locations dynamically
+  const uniqueCities = useMemo(() => {
+    const cities = new Set<string>()
+    locations.forEach(loc => {
+      const parts = loc.label.split(' > ').map(p => p.trim())
+      // Format: [Area >] City > State > Country
+      // City is always the 3rd element from the end
+      if (parts.length >= 3) {
+        cities.add(parts[parts.length - 3])
+      } else if (parts.length > 0) {
+        cities.add(parts[0])
+      }
+    })
+    return Array.from(cities).sort()
+  }, [locations])
+
+  // 🌟 NEW: Filter Cities for the City Dropdown
+  const filteredCities = useMemo(() => {
+    return uniqueCities.filter(c => 
+      c.toLowerCase().includes(cityInput.toLowerCase())
+    )
+  }, [uniqueCities, cityInput])
+
   const handleSelect = (locLabel: string) => {
     if (multiple) {
       const currentSelected = Array.isArray(selected) ? selected : []
@@ -71,11 +97,13 @@ export default function LocationSelector({ label, selected, onChange, multiple =
     }
   }
 
-  // Smart trigger jab koi search item na mile
+  // Smart trigger
   const startSmartAdd = (query: string) => {
-    setCityInput(query) // jo search kiya tha use city maan kar pre-fill kar diya
+    setCityInput(query) 
     setAreaInput('')
     setIsInlineAdding(true)
+    setCitySearchOpen(false)
+    setStateSearchOpen(false)
   }
 
   const handleSaveInlineLocation = async () => {
@@ -83,7 +111,6 @@ export default function LocationSelector({ label, selected, onChange, multiple =
       return alert("City, State aur Country bharna zaroori hai!")
     }
     
-    // Format: Area > City > State > Country (Agar area diya ho) warna City > State > Country
     let newLabel = ''
     if (areaInput.trim()) {
       newLabel = `${areaInput.trim()} > ${cityInput.trim()} > ${stateName.trim()} > ${country.trim()}`
@@ -94,11 +121,11 @@ export default function LocationSelector({ label, selected, onChange, multiple =
     const { data, error } = await supabase.from('locations').insert([{ label: newLabel }]).select().single()
     
     if (error) {
-      alert("Error saving location. Shayad yeh pehle se add hai.")
+      alert("Error saving location. Shayad yeh exact combination pehle se add hai.")
     } else if (data) {
       const updatedList = [...locations, data].sort((a, b) => a.label.localeCompare(b.label))
       setLocations(updatedList)
-      handleSelect(data.label) // Automatically select the newly added location!
+      handleSelect(data.label) 
       setIsInlineAdding(false)
       setSearch('')
       setCityInput('')
@@ -139,13 +166,13 @@ export default function LocationSelector({ label, selected, onChange, multiple =
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-xl max-h-72 overflow-y-auto flex flex-col">
+        <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-xl max-h-[400px] overflow-hidden flex flex-col">
           
-          {/* SEARCH BAR (Always on Top for quick lookup) */}
+          {/* SEARCH BAR */}
           <div className="p-2 border-b bg-gray-50 sticky top-0 z-20">
             <input 
               type="text" 
-              placeholder="🔍 Search city (e.g. Khandala)..." 
+              placeholder="🔍 Search location..." 
               className="w-full px-3 py-1.5 text-sm border rounded-md outline-none focus:ring-1 focus:ring-blue-500 bg-white"
               value={search}
               onChange={(e) => {
@@ -157,11 +184,19 @@ export default function LocationSelector({ label, selected, onChange, multiple =
             />
           </div>
 
-          {/* SMART INLINE ADD FORM (Agar search karne par location na mile) */}
+          {/* SMART INLINE ADD FORM */}
           {isInlineAdding ? (
-            <div className="p-3 bg-blue-50 border-b space-y-2" onClick={(e) => e.stopPropagation()}>
+            <div 
+              className="p-3 bg-blue-50 border-b space-y-3" 
+              onClick={(e) => {
+                e.stopPropagation();
+                // Close dropdowns if clicked on the background of the form
+                setCitySearchOpen(false);
+                setStateSearchOpen(false);
+              }}
+            >
               <div className="text-xs font-bold text-blue-800">
-                ✨ Add new location matching "<span className="underline">{search}</span>":
+                ✨ Add New Location (Create custom combination):
               </div>
 
               <div>
@@ -169,41 +204,74 @@ export default function LocationSelector({ label, selected, onChange, multiple =
                 <input 
                   type="text" 
                   placeholder="e.g. Lonavala Station"
-                  className="w-full px-2 py-1 text-sm border rounded bg-white text-black" 
+                  className="w-full px-2 py-1.5 text-sm border rounded bg-white text-black focus:ring-1 focus:ring-blue-500 outline-none" 
                   value={areaInput} 
                   onChange={(e) => setAreaInput(e.target.value)} 
                 />
               </div>
               
-              <div>
+              {/* 🌟 NEW: City Dropdown/Input Field */}
+              <div className="relative">
                 <label className="text-[10px] text-gray-500 font-bold">City / Destination *</label>
                 <input 
                   type="text" 
-                  className="w-full px-2 py-1 text-sm border rounded bg-white text-black" 
+                  className="w-full px-2 py-1.5 text-sm border rounded bg-white text-black focus:ring-1 focus:ring-blue-500 outline-none" 
                   value={cityInput} 
-                  onChange={(e) => setCityInput(e.target.value)} 
+                  onChange={(e) => {
+                    setCityInput(e.target.value)
+                    setCitySearchOpen(true)
+                    setStateSearchOpen(false)
+                  }}
+                  onFocus={() => {
+                    setCitySearchOpen(true)
+                    setStateSearchOpen(false)
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                 />
+                {citySearchOpen && filteredCities.length > 0 && (
+                  <div className="absolute z-30 w-full bg-white border rounded shadow-md max-h-32 overflow-y-auto mt-1">
+                    {filteredCities.map((ct) => (
+                      <div 
+                        key={ct} 
+                        className="px-3 py-1.5 text-xs hover:bg-blue-50 cursor-pointer text-gray-700 font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCityInput(ct)
+                          setCitySearchOpen(false)
+                        }}
+                      >
+                        {ct}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="relative">
                 <label className="text-[10px] text-gray-500 font-bold">State *</label>
                 <input 
                   type="text" 
-                  className="w-full px-2 py-1 text-sm border rounded bg-white text-black" 
+                  className="w-full px-2 py-1.5 text-sm border rounded bg-white text-black focus:ring-1 focus:ring-blue-500 outline-none" 
                   value={stateName} 
                   onChange={(e) => {
                     setStateName(e.target.value)
                     setStateSearchOpen(true)
+                    setCitySearchOpen(false)
                   }}
-                  onFocus={() => setStateSearchOpen(true)}
+                  onFocus={() => {
+                    setStateSearchOpen(true)
+                    setCitySearchOpen(false)
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                 />
                 {stateSearchOpen && filteredStates.length > 0 && (
                   <div className="absolute z-30 w-full bg-white border rounded shadow-md max-h-28 overflow-y-auto mt-1">
                     {filteredStates.map((st) => (
                       <div 
                         key={st} 
-                        className="px-3 py-1 text-xs hover:bg-blue-50 cursor-pointer text-gray-700 font-medium"
-                        onClick={() => {
+                        className="px-3 py-1.5 text-xs hover:bg-blue-50 cursor-pointer text-gray-700 font-medium border-b border-gray-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setStateName(st)
                           setStateSearchOpen(false)
                         }}
@@ -219,42 +287,46 @@ export default function LocationSelector({ label, selected, onChange, multiple =
                 <label className="text-[10px] text-gray-500 font-bold">Country *</label>
                 <input 
                   type="text" 
-                  className="w-full px-2 py-1 text-sm border rounded bg-white text-black" 
+                  className="w-full px-2 py-1.5 text-sm border rounded bg-white text-black focus:ring-1 focus:ring-blue-500 outline-none" 
                   value={country} 
                   onChange={(e) => setCountry(e.target.value)} 
                 />
               </div>
 
-              <div className="flex gap-2 pt-1">
-                <button type="button" onClick={handleSaveInlineLocation} className="bg-green-600 text-white text-xs px-3 py-1.5 rounded font-bold flex-1">Save & Select</button>
-                <button type="button" onClick={() => setIsInlineAdding(false)} className="bg-gray-300 text-gray-700 text-xs px-3 py-1.5 rounded font-bold flex-1">Cancel</button>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={handleSaveInlineLocation} className="bg-green-600 text-white text-xs px-3 py-2 rounded font-bold flex-1 hover:bg-green-700">Save & Select</button>
+                <button type="button" onClick={() => setIsInlineAdding(false)} className="bg-gray-300 text-gray-800 text-xs px-3 py-2 rounded font-bold flex-1 hover:bg-gray-400">Cancel</button>
               </div>
             </div>
           ) : null}
 
+          {/* 🌟 NEW: Add Button is ALWAYS Visible if search is not empty */}
+          {!isInlineAdding && search.trim() !== '' && (
+            <div className="p-2 bg-amber-50 border-b" onClick={(e) => e.stopPropagation()}>
+              <button 
+                type="button" 
+                onClick={(e) => { e.stopPropagation(); startSmartAdd(search.trim()) }}
+                className="w-full bg-blue-600 text-white text-xs px-3 py-2.5 rounded-lg font-bold hover:bg-blue-700 shadow-sm transition-all"
+              >
+                + Add "{search.trim()}" to a New State/Location
+              </button>
+            </div>
+          )}
+
           {/* LOCATION LIST */}
-          <div className="overflow-y-auto flex-1">
+          <div className="overflow-y-auto max-h-60 flex-1 bg-white">
             {filteredLocations.length > 0 ? (
               filteredLocations.map((loc) => (
-                <div key={loc.id} className="flex justify-between items-center px-4 py-2 hover:bg-gray-50 border-b cursor-pointer" onClick={() => handleSelect(loc.label)}>
+                <div key={loc.id} className="flex justify-between items-center px-4 py-2.5 hover:bg-blue-50 border-b cursor-pointer transition-colors" onClick={() => handleSelect(loc.label)}>
                   <span className={`text-sm ${selectedArray.includes(loc.label) ? 'font-bold text-blue-600' : 'text-gray-700'}`}>
                     {selectedArray.includes(loc.label) ? '✓ ' : ''}{loc.label}
                   </span>
-                  <button type="button" onClick={(e) => handleDelete(e, loc.id)} className="text-red-400 hover:text-red-600 text-xs font-bold">Delete</button>
+                  <button type="button" onClick={(e) => handleDelete(e, loc.id)} className="text-red-400 hover:text-red-600 text-xs font-bold px-2 py-1 rounded hover:bg-red-50">Delete</button>
                 </div>
               ))
             ) : (
-              <div className="p-4 text-center">
-                <p className="text-sm text-gray-500 mb-2">No location found matching "{search}"</p>
-                {search.trim() && (
-                  <button 
-                    type="button" 
-                    onClick={(e) => { e.stopPropagation(); startSmartAdd(search.trim()) }}
-                    className="bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-bold hover:bg-blue-700 shadow-sm"
-                  >
-                    + Add "{search.trim()}" as New Location
-                  </button>
-                )}
+              <div className="p-6 text-center">
+                <p className="text-sm text-gray-500">No matching locations found.</p>
               </div>
             )}
           </div>
