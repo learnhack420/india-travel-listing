@@ -16,7 +16,13 @@ const formatLocation = (locStr?: string) => {
   return locStr.replace(/ > /g, ', ')
 }
 
-// 🌟 SEO UPGRADE 1: Advanced Metadata with Canonical URLs & OpenGraph
+// String safety function for SEO descriptions to remove accidental HTML tags
+const cleanTextForSEO = (htmlString: any) => {
+  if (!htmlString || typeof htmlString !== 'string') return "";
+  return String(htmlString).replace(/(<([^>]+)>)/gi, "").replace(/&nbsp;/gi, " ").trim();
+};
+
+// 🌟 SEO UPGRADE 1: Advanced Metadata with Canonical URLs, OpenGraph, and Robots
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
   const slug = resolvedParams.slug
@@ -38,24 +44,39 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const currentUrl = `${siteUrl}/tour/${slug}`
   const thumbnail = tour.metadata?.thumbnail || tour.metadata?.gallery?.[0] || `${siteUrl}/default-tour.jpg`
   
+  const rawDescription = seo.metaDescription || tour.metadata?.shortDescription || `Book the ultimate ${tour.title}. Explore the best itinerary, places to visit, and inclusions. Get guaranteed best prices from verified local operators.`
+  const cleanDescription = cleanTextForSEO(rawDescription).substring(0, 160)
+
   return {
     title: seo.metaTitle || `${tour.title} - Best Tour Package | India Tour Operators`,
-    description: seo.metaDescription || `Book the ultimate ${tour.title}. Explore the best itinerary, places to visit, and inclusions. Get guaranteed best prices from verified local operators.`,
-    keywords: seo.metaKeywords || `${tour.title}, ${formatLocation(tour.location)} tour package, book cab, best hotels in ${formatLocation(tour.location)}, travel agency`,
+    description: cleanDescription,
+    keywords: seo.metaKeywords || `${tour.title}, ${formatLocation(tour.location)} tour package, sightseeing in ${formatLocation(tour.location)}, book cab, travel agency, vacation package`,
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
     alternates: {
       canonical: currentUrl,
     },
     openGraph: {
       title: seo.metaTitle || tour.title,
-      description: seo.metaDescription || `Book the ultimate ${tour.title} with verified local operators.`,
+      description: cleanDescription,
       url: currentUrl,
+      siteName: 'India Tour Operators',
       type: 'website',
       images: [{ url: thumbnail, width: 1200, height: 630, alt: tour.title }],
     },
     twitter: {
       card: 'summary_large_image',
       title: seo.metaTitle || tour.title,
-      description: seo.metaDescription || `Book the ultimate ${tour.title}.`,
+      description: cleanDescription,
       images: [thumbnail],
     }
   }
@@ -122,7 +143,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
     ))
   }
 
-  // 🌟 SEO UPGRADE 2: JSON-LD Structured Data
+  // 🌟 SEO UPGRADE 2: JSON-LD Structured Data Enhanced
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
   
   // 1. Breadcrumb Schema
@@ -136,27 +157,38 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
     ]
   };
 
-  // 2. TouristTrip Schema
+  // Build Image Array for Google Rich Snippets
+  const schemaImages = [thumbnail, ...gallery].filter(Boolean);
+
+  // Parse price safely for schema
+  const parsedPrice = meta.price ? Number(meta.price.toString().replace(/[^0-9.]/g, '')) : (tour.price || 0);
+
+  // 2. TouristTrip Schema (Enhanced for Rich Snippets)
   const tourSchema = {
     "@context": "https://schema.org",
     "@type": "TouristTrip",
     "name": tour.title,
-    "description": meta.seo?.metaDescription || meta.shortDescription || `Enjoy a trip to ${destinationsCovered}.`,
-    "image": thumbnail,
-    "touristType": ["Sightseeing", "Cultural", "Leisure"],
+    "description": cleanTextForSEO(meta.seo?.metaDescription || meta.shortDescription || `Enjoy a wonderful trip to ${destinationsCovered}.`),
+    "image": schemaImages,
+    "touristType": ["Sightseeing", "Cultural", "Leisure", "Road Trip"],
+    "provider": {
+      "@type": "TravelAgency",
+      "name": "India Tour Operators",
+      "url": siteUrl
+    },
     "itinerary": {
       "@type": "ItemList",
       "itemListElement": itineraryDays.map((day: any, idx: number) => ({
         "@type": "ListItem",
         "position": idx + 1,
         "name": `Day ${day.day}: ${day.title}`,
-        "description": day.description
+        "description": cleanTextForSEO(day.description)
       }))
     },
-    ...(meta.price && {
+    ...(parsedPrice > 0 && {
       "offers": {
         "@type": "Offer",
-        "price": meta.price,
+        "price": parsedPrice,
         "priceCurrency": "INR",
         "availability": "https://schema.org/InStock",
         "url": `${siteUrl}/tour/${slug}`
@@ -171,7 +203,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
     "mainEntity": meta.faqs.map((faq: any) => ({
       "@type": "Question",
       "name": faq.question,
-      "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
+      "acceptedAnswer": { "@type": "Answer", "text": cleanTextForSEO(faq.answer) }
     }))
   } : null;
 
@@ -186,17 +218,17 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
       {/* Hero Image */}
       <div className="relative h-[400px] md:h-[550px] w-full bg-gray-900">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={thumbnail} alt={`${tour.title} in ${destinationsCovered}`} className="w-full h-full object-cover opacity-70" />
+        <img src={thumbnail} alt={`${tour.title} package from ${origin} to ${destinationsCovered}`} title={tour.title} className="w-full h-full object-cover opacity-70" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
         
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-7xl mx-auto">
           {/* 🌟 SEO UPGRADE 3: UI Breadcrumbs */}
-          <nav className="flex items-center text-xs md:text-sm text-gray-300 font-bold mb-6 overflow-x-auto whitespace-nowrap">
-            <Link href="/" className="hover:text-white transition-colors flex items-center gap-1">🏠 Home</Link>
+          <nav aria-label="breadcrumb" className="flex items-center text-xs md:text-sm text-gray-300 font-bold mb-6 overflow-x-auto whitespace-nowrap">
+            <Link href="/" className="hover:text-white transition-colors flex items-center gap-1" title="Go to Homepage">🏠 Home</Link>
             <span className="mx-2 text-gray-500">/</span>
-            <Link href="/tours" className="hover:text-white transition-colors">Tours</Link>
+            <Link href="/tours" className="hover:text-white transition-colors" title="View all tours">Tours</Link>
             <span className="mx-2 text-gray-500">/</span>
-            <span className="text-white truncate">{tour.title}</span>
+            <span className="text-white truncate" aria-current="page">{tour.title}</span>
           </nav>
 
           <span className="bg-blue-600 text-white text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-md">
@@ -204,8 +236,8 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           </span>
           <h1 className="text-4xl md:text-6xl font-black text-white mt-5 leading-tight drop-shadow-lg">{tour.title}</h1>
           <div className="flex flex-wrap items-center gap-5 mt-5 text-gray-200 font-bold text-lg">
-            <span className="flex items-center gap-2 bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-xl">📍 {formatLocation(tour.location)}</span>
-            <span className="flex items-center gap-2 bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-xl">⏱️ {meta.duration || 'Custom Duration'}</span>
+            <span className="flex items-center gap-2 bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-xl" title="Location">📍 {formatLocation(tour.location)}</span>
+            <span className="flex items-center gap-2 bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-xl" title="Duration">⏱️ {meta.duration || 'Custom Duration'}</span>
           </div>
         </div>
       </div>
@@ -302,7 +334,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                 {gallery.map((imgUrl: string, idx: number) => (
                   <div key={idx} className="h-40 md:h-48 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 relative group cursor-pointer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imgUrl} alt={`${tour.title} highlights - ${destinationsCovered} - Image ${idx+1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <img src={imgUrl} alt={`${tour.title} highlights - ${destinationsCovered} - Image ${idx+1}`} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   </div>
                 ))}
               </div>
@@ -441,11 +473,11 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
         </div>
 
         {/* Right Sidebar */}
-        <div className="lg:col-span-1">
+        <aside className="lg:col-span-1">
           <div className="sticky top-6">
             <TourBookingSidebar tour={tour} meta={meta} destinations={destinationsCovered} />
           </div>
-        </div>
+        </aside>
 
       </div>
 
