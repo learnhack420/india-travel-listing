@@ -2,6 +2,7 @@ import { supabase } from '../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import MainSearchBox from './components/MainSearchBox'
+import InteractiveIndiaMap from './components/InteractiveIndiaMap' // 👈 Map Component Import kiya hai
 
 // 🌟 SEO Metadata for India Tour Operators
 export const metadata: Metadata = {
@@ -122,9 +123,16 @@ export default async function Home() {
           </p>
         </div>
 
+        {/* --- SEARCH BOX --- */}
         <div className="relative z-20 max-w-5xl mx-auto drop-shadow-2xl">
           <MainSearchBox />
         </div>
+
+        {/* 👇 MAP COMPONENT ADDED HERE 👇 */}
+        <div className="relative z-20 max-w-5xl mx-auto mt-12 pb-8">
+          <InteractiveIndiaMap />
+        </div>
+
       </section>
 
       {/* --- TRUST & FEATURES SECTION --- */}

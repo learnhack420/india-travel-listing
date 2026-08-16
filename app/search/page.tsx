@@ -25,13 +25,24 @@ const getListingUrl = (listing: any) => {
   return `/listing/${slug}`
 }
 
-// Thumbnail Helper
+// 🌟 PERFECT THUMBNAIL EXTRACTOR (Same as Homepage)
 const getThumbnail = (listing: any) => {
-  const meta = listing.metadata || {}
-  if (meta.gallery && meta.gallery.length > 0 && meta.gallery[0].trim() !== '') {
-    return meta.gallery[0]
+  const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
+  
+  // 1. Direct Image Match 
+  const exactImage = listing.image || listing.thumbnail || meta.thumbnail || meta.image;
+  if (exactImage && typeof exactImage === 'string' && exactImage.trim() !== '') {
+    return exactImage.trim();
   }
-  return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=600'
+
+  // 2. Check meta.gallery array as fallback 
+  if (meta.gallery && Array.isArray(meta.gallery) && meta.gallery.length > 0) {
+    const firstValidImg = meta.gallery.find((img: string) => img && typeof img === 'string' && img.trim() !== '')
+    if (firstValidImg) return firstValidImg.trim()
+  }
+
+  // 3. Custom Default Logo (If no image is found anywhere)
+  return '/ITO LOGO.png'
 }
 
 export default async function SearchResultsPage({ 
@@ -58,17 +69,11 @@ export default async function SearchResultsPage({
     query = query.eq('category', service)
   }
 
-  // 2. Filter by Location/Keyword using .ilike() for partial matching
-  if (service === 'tour' && destination) {
-    query = query.ilike('location', `%${destination}%`)
-  } else if (service === 'hotel' && city) {
-    query = query.ilike('location', `%${city}%`)
-  } else if (service === 'cab') {
-    // Cab ke case mein city ya pickup me se jo bhi field URL me ho
-    const searchLocation = city || pickup
-    if (searchLocation) {
-      query = query.ilike('location', `%${searchLocation}%`)
-    }
+  // 🌟 2. SMART LOCATION FILTER (Map Click & Manual Search dono ke liye)
+  const searchLocation = destination || city || pickup;
+  
+  if (searchLocation) {
+    query = query.ilike('location', `%${searchLocation}%`)
   }
 
   // Finalize query order
@@ -86,6 +91,8 @@ export default async function SearchResultsPage({
     if (resolvedParams.type === 'local') searchHeading = `Local Cabs in ${city || 'City'}`
     else if (resolvedParams.type === 'outstation') searchHeading = `Outstation Cabs from ${pickup || 'City'}`
     else searchHeading = "Cab Services"
+  } else if (searchLocation) {
+    searchHeading = `Best Places to Explore in ${searchLocation}`
   }
 
   return (
@@ -119,11 +126,12 @@ export default async function SearchResultsPage({
                   key={listing.id} 
                   className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col group cursor-pointer"
                 >
-                  <div className="relative h-56 w-full bg-gray-200 overflow-hidden">
+                  <div className="relative h-56 w-full bg-gray-200 overflow-hidden flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                       src={imageUrl} 
                       alt={listing.title} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className={`w-full h-full ${imageUrl === '/ITO LOGO.png' ? 'object-contain p-4' : 'object-cover group-hover:scale-110 transition-transform duration-500'}`} 
                     />
                     <span className="absolute top-3 left-3 text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full uppercase tracking-wide shadow-md">
                       {listing.category}
@@ -143,7 +151,7 @@ export default async function SearchResultsPage({
                     <div>
                       <div className="mt-6 flex justify-between items-end border-t border-gray-100 pt-4">
                         <span className="text-gray-500 text-sm font-medium flex items-center truncate max-w-[60%]">
-                          📍 {listing.location}
+                          📍 {listing.location ? listing.location.split(',')[0] : 'India'}
                         </span>
                         <div className="text-right">
                           <span className="block text-xs text-gray-400 font-medium mb-1">Starting from</span>
@@ -162,7 +170,7 @@ export default async function SearchResultsPage({
               <span className="text-6xl block mb-4">🔍</span>
               <h2 className="text-2xl font-bold text-gray-800">No results found</h2>
               <p className="text-gray-500 mt-2 max-w-md mx-auto">
-                We couldn't find any {service} services matching your search criteria right now. Try searching for a different city or category.
+                We couldn't find any services matching your search criteria right now. Try searching for a different location or category.
               </p>
               <Link href="/" className="inline-block mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors">
                 Go Back Home
