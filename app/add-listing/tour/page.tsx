@@ -23,6 +23,10 @@ function TourFormContent() {
 
   // 🌟 NEW: Track button action (draft or publish)
   const [submitAction, setSubmitAction] = useState('publish')
+  
+  // 🌟 NEW: Auto-save tracking states
+  const [currentEditId, setCurrentEditId] = useState<string | null>(editId)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
   // 1. Basic Info & SEO States
   const [title, setTitle] = useState('')
@@ -97,17 +101,12 @@ function TourFormContent() {
       return
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, approval_status')
-      .eq('id', session.user.id)
-      .single()
+    const { data: profile } = await supabase.from('profiles').select('role, approval_status').eq('id', session.user.id).single()
 
     if (!profile || (profile.role !== 'vendor' && profile.role !== 'admin')) {
       router.push('/login')
       return
     }
-
     if (profile.role === 'vendor' && profile.approval_status !== 'approved') {
       router.push('/login')
       return
@@ -117,11 +116,8 @@ function TourFormContent() {
     setUserRole(profile.role)
 
     if (editId) {
-      const { data: listing, error } = await supabase
-        .from('listings')
-        .select('*')
-        .eq('id', editId)
-        .single()
+      setCurrentEditId(editId)
+      const { data: listing, error } = await supabase.from('listings').select('*').eq('id', editId).single()
 
       if (error || !listing) {
         setMessage({ type: 'error', text: 'Listing nahi mili!' })
@@ -153,13 +149,6 @@ function TourFormContent() {
         setDurationDays(meta.durationRaw.d || '0')
         setDurationNights(meta.durationRaw.n || '0')
         setDurationHours(meta.durationRaw.h || '0')
-      } else if (meta.duration) {
-        const dMatch = meta.duration.match(/(\d+)\s+Day/);
-        const nMatch = meta.duration.match(/(\d+)\s+Night/);
-        const hMatch = meta.duration.match(/(\d+)\s+Hour/);
-        if (dMatch) setDurationDays(dMatch[1]);
-        if (nMatch) setDurationNights(nMatch[1]);
-        if (hMatch) setDurationHours(hMatch[1]);
       }
 
       if (meta.pickupTimes?.length > 0) setPickupTimes(meta.pickupTimes)
@@ -184,147 +173,10 @@ function TourFormContent() {
     setLoading(false)
   }
 
-  const uploadImageToServer = async (file: File) => {
-    const formData = new FormData()
-    formData.append('image', file)
-    
-    const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
-    
-    try {
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await response.json()
-      if (data.success) {
-        return data.data.url 
-      } else {
-        throw new Error('Upload failed')
-      }
-    } catch (error) {
-      console.error("Image upload error:", error)
-      alert("Image upload fail ho gaya. Kripya image size chota rakhein ya URL direct paste karein.")
-      return null
-    }
-  }
-
-  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setIsUploadingThumb(true)
-    const url = await uploadImageToServer(file)
-    if (url) setThumbnail(url)
-    setIsUploadingThumb(false)
-  }
-
-  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploadingGalleryIndex(index)
-    const url = await uploadImageToServer(file)
-    if (url) {
-      const newGallery = [...gallery]
-      newGallery[index] = url
-      setGallery(newGallery)
-    }
-    setUploadingGalleryIndex(null)
-  }
-
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value
-    setTitle(newTitle)
-    if (!slugEdited) {
-      const generatedSlug = newTitle
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '')
-      setSlug(generatedSlug)
-    }
-  }
-
-  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const manualSlug = e.target.value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '')
-    setSlug(manualSlug)
-    setSlugEdited(true)
-  }
-
-  const handlePickupTimeChange = (index: number, value: string) => {
-    const newTimes = [...pickupTimes]; newTimes[index] = value; setPickupTimes(newTimes)
-  }
-  const addPickupTime = () => setPickupTimes([...pickupTimes, '09:00'])
-  const removePickupTime = (index: number) => { if (pickupTimes.length > 1) setPickupTimes(pickupTimes.filter((_, i) => i !== index)) }
-
-  const handlePlaceChange = (index: number, value: string) => {
-    const newPlaces = [...placesToVisit]; newPlaces[index] = value; setPlacesToVisit(newPlaces)
-  }
-  const addPlace = () => setPlacesToVisit([...placesToVisit, ''])
-  const removePlace = (index: number) => { if (placesToVisit.length > 1) setPlacesToVisit(placesToVisit.filter((_, i) => i !== index)) }
-
-  const handleItineraryChange = (index: number, field: 'title' | 'description', value: string) => {
-    const newItinerary = [...itineraryDays]
-    newItinerary[index][field] = value
-    setItineraryDays(newItinerary)
-  }
-  const addItineraryDay = () => setItineraryDays([...itineraryDays, { day: itineraryDays.length + 1, title: '', description: '' }])
-  const removeItineraryDay = (index: number) => { 
-    if (itineraryDays.length > 1) {
-      const filtered = itineraryDays.filter((_, i) => i !== index)
-      const reIndexed = filtered.map((item, i) => ({ ...item, day: i + 1 }))
-      setItineraryDays(reIndexed)
-    }
-  }
-
-  const handleGalleryChange = (index: number, value: string) => {
-    const newGallery = [...gallery]; newGallery[index] = value; setGallery(newGallery)
-  }
-  const addGalleryImage = () => setGallery([...gallery, ''])
-  const removeGalleryImage = (index: number) => { if (gallery.length > 1) setGallery(gallery.filter((_, i) => i !== index)) }
-
-  const handleFaqChange = (index: number, field: 'question' | 'answer', value: string) => {
-    const newFaqs = [...faqs]; newFaqs[index][field] = value; setFaqs(newFaqs)
-  }
-  const addFaq = () => setFaqs([...faqs, { question: '', answer: '' }])
-  const removeFaq = (index: number) => { if (faqs.length > 1) setFaqs(faqs.filter((_, i) => i !== index)) }
-
-  const toggleMonth = (month: string) => {
-    if (bestMonths.includes(month)) {
-      setBestMonths(bestMonths.filter(m => m !== month))
-    } else {
-      setBestMonths([...bestMonths, month])
-    }
-  }
-
-  // 🌟 NEW: Handles permanent deletion of the draft/listing
-  const handleDeleteListing = async () => {
-    if (!window.confirm("WARNING: Kya aap sach mein is tour package ko delete karna chahte hain? Yeh wapas recover nahi hoga.")) return
-
-    setSubmitting(true)
-    const { error } = await supabase.from("listings").delete().eq("id", editId)
-    
-    if (error) {
-      alert("Error deleting listing: " + error.message)
-      setSubmitting(false)
-    } else {
-      alert("Tour package deleted successfully!")
-      router.push(userRole === 'admin' ? "/admin" : "/vendor")
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!startLocation || destinations.length === 0) {
-      setMessage({ type: 'error', text: 'Please select both Origin and at least one Destination!' })
-      return
-    }
-
-    setSubmitting(true)
-    setMessage({ type: '', text: '' })
-
+  // 🌟 CENTRALIZED PAYLOAD GENERATOR (Used by Auto-Save & Manual Submit)
+  const generatePayload = (statusAction: string) => {
     const formattedDestinations = destinations.join(', ')
-    const fullLocationString = `${startLocation} ➔ ${formattedDestinations}`
+    const fullLocationString = `${startLocation} ${destinations.length > 0 ? '➔ ' + formattedDestinations : ''}`.trim()
 
     const dStr = []
     if (parseInt(durationDays) > 0) dStr.push(`${durationDays} Day${parseInt(durationDays) > 1 ? 's' : ''}`)
@@ -338,8 +190,7 @@ function TourFormContent() {
       const [h, m] = time24.split(':')
       const hours = parseInt(h, 10)
       const ampm = hours >= 12 ? 'PM' : 'AM'
-      const formattedHours = hours % 12 || 12
-      return `${formattedHours}:${m} ${ampm}`
+      return `${hours % 12 || 12}:${m} ${ampm}`
     }
     const formattedPickupTimesStr = cleanPickupTimes.map(formatTime12hr).join(', ') || 'Not fixed'
 
@@ -348,7 +199,7 @@ function TourFormContent() {
       personPrices.min4 ? `Min 4 Pax: ₹${personPrices.min4} / person` : '',
       personPrices.min6 ? `Min 6 Pax: ₹${personPrices.min6} / person` : '',
       personPrices.min8 ? `Min 8+ Pax: ₹${personPrices.min8} / person` : ''
-    ].filter(Boolean).join('\n') || 'Not Available';
+    ].filter(Boolean).join('\n') || 'Not Available'
 
     const formattedCabPricing = [
       cabPrices.hatchback ? `Hatchback (Max 4): ₹${cabPrices.hatchback}${cabExtraCharges.hatchback ? ` | Extra: ₹${cabExtraCharges.hatchback}/hr` : ''}` : '',
@@ -356,24 +207,12 @@ function TourFormContent() {
       cabPrices.suv ? `SUV / Ertiga (Max 6): ₹${cabPrices.suv}${cabExtraCharges.suv ? ` | Extra: ₹${cabExtraCharges.suv}/hr` : ''}` : '',
       cabPrices.innova ? `Innova / Crysta (Max 6): ₹${cabPrices.innova}${cabExtraCharges.innova ? ` | Extra: ₹${cabExtraCharges.innova}/hr` : ''}` : '',
       cabPrices.tempo ? `Tempo Traveller (Max 12): ₹${cabPrices.tempo}${cabExtraCharges.tempo ? ` | Extra: ₹${cabExtraCharges.tempo}/hr` : ''}` : ''
-    ].filter(Boolean).join('\n') || 'Not Available';
+    ].filter(Boolean).join('\n') || 'Not Available'
 
-    const formattedFaqs = faqs
-      .filter(f => f.question.trim() !== '' && f.answer.trim() !== '')
-      .map(f => `❓ **Q: ${f.question}**\n👉 A: ${f.answer}`)
-      .join('\n\n') || 'No FAQs provided';
-
-    const formattedItinerary = itineraryDays
-      .filter(d => d.title.trim() !== '')
-      .map(d => `🔹 **Day ${d.day}: ${d.title}**\n${d.description}`)
-      .join('\n\n') || 'Not provided';
-      
-    const formattedPlaces = placesToVisit.filter(p => p.trim() !== '').join(', ') || 'Not provided';
-
-    const formattedBestTime = `
-Description: ${bestTimeToVisit || 'Not specified'}
-Recommended Months: ${bestMonths.length > 0 ? bestMonths.join(', ') : 'All Year Round'}
-    `.trim()
+    const formattedFaqs = faqs.filter(f => f.question.trim() !== '' && f.answer.trim() !== '').map(f => `❓ **Q: ${f.question}**\n👉 A: ${f.answer}`).join('\n\n') || 'No FAQs provided'
+    const formattedItinerary = itineraryDays.filter(d => d.title.trim() !== '').map(d => `🔹 **Day ${d.day}: ${d.title}**\n${d.description}`).join('\n\n') || 'Not provided'
+    const formattedPlaces = placesToVisit.filter(p => p.trim() !== '').join(', ') || 'Not provided'
+    const formattedBestTime = `Description: ${bestTimeToVisit || 'Not specified'}\nRecommended Months: ${bestMonths.length > 0 ? bestMonths.join(', ') : 'All Year Round'}`.trim()
 
     const detailedDescription = `
 📝 Overview:
@@ -404,113 +243,191 @@ ${formattedItinerary}
 ${formattedFaqs}
     `.trim()
 
-    const cleanGallery = gallery.filter(link => link.trim() !== '')
-    const cleanPlaces = placesToVisit.filter(p => p.trim() !== '')
-    const cleanItinerary = itineraryDays.filter(d => d.title.trim() !== '')
-
     const metadata = {
-      duration: finalDuration,
-      durationRaw: { d: durationDays, n: durationNights, h: durationHours },
-      startLocation,
-      destinationsArray: destinations, 
-      pickupTimes: cleanPickupTimes,
-      overview,
-      placesToVisit: cleanPlaces,
-      itineraryDays: cleanItinerary,
-      personPrices,
-      cabPrices,
-      cabExtraCharges,
-      inclusions,
-      exclusions,
-      thumbnail,
-      gallery: cleanGallery,
-      faqs,
-      bestTimeToVisit,
-      bestMonths,
-      seo: {
-        metaTitle,
-        metaDescription,
-        metaKeywords
-      }
+      duration: finalDuration, durationRaw: { d: durationDays, n: durationNights, h: durationHours },
+      startLocation, destinationsArray: destinations, pickupTimes: cleanPickupTimes,
+      overview, placesToVisit: placesToVisit.filter(p => p.trim() !== ''),
+      itineraryDays: itineraryDays.filter(d => d.title.trim() !== ''),
+      personPrices, cabPrices, cabExtraCharges,
+      inclusions, exclusions, thumbnail, gallery: gallery.filter(link => link.trim() !== ''),
+      faqs, bestTimeToVisit, bestMonths, seo: { metaTitle, metaDescription, metaKeywords }
     }
 
-    // 🌟 NEW: Determine Final Status based on button clicked
+    return {
+      title,
+      slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
+      location: fullLocationString,
+      price: parseFloat(price) || 0,
+      description: detailedDescription,
+      status: statusAction,
+      metadata
+    }
+  }
+
+  // 🌟 BACKGROUND & WINDOW CLOSE AUTO-SAVE LOGIC
+  useEffect(() => {
+    if (!title.trim() || !vendorId || submitting) return;
+
+    // 1. Debounced Background Saver (Saves every 5 seconds of inactivity)
+    const timeoutId = setTimeout(async () => {
+      const dbPayload = generatePayload('draft');
+      if (currentEditId) {
+        await supabase.from('listings').update(dbPayload).eq('id', currentEditId);
+        setLastSaved(new Date());
+      } else {
+        const { data } = await supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }]).select('id').single();
+        if (data?.id) {
+          setCurrentEditId(data.id);
+          window.history.replaceState(null, '', `?edit=${data.id}`); // URL update so reload edits the same draft
+          setLastSaved(new Date());
+        }
+      }
+    }, 5000);
+
+    // 2. Tab/Window Close Saver
+    const handleCloseSave = () => {
+      if (!title.trim() || !vendorId) return;
+      const dbPayload = generatePayload('draft');
+      if (currentEditId) {
+        supabase.from('listings').update(dbPayload).eq('id', currentEditId).then();
+      } else {
+        supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }]).then();
+      }
+    };
+
+    const handleVisibilityChange = () => { if (document.visibilityState === 'hidden') handleCloseSave(); };
+    const handleBeforeUnload = () => { handleCloseSave(); };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }); // Runs to capture freshest state
+
+
+  // 🌟 HELPER FUNCTIONS 
+  const uploadImageToServer = async (file: File) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData })
+      const data = await response.json()
+      if (data.success) return data.data.url 
+      else throw new Error('Upload failed')
+    } catch (error) {
+      alert("Image upload fail ho gaya. Kripya image size chota rakhein ya URL direct paste karein.")
+      return null
+    }
+  }
+
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return
+    setIsUploadingThumb(true); const url = await uploadImageToServer(file); if (url) setThumbnail(url); setIsUploadingThumb(false)
+  }
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0]; if (!file) return
+    setUploadingGalleryIndex(index); const url = await uploadImageToServer(file)
+    if (url) { const newGallery = [...gallery]; newGallery[index] = url; setGallery(newGallery) }
+    setUploadingGalleryIndex(null)
+  }
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = e.target.value; setTitle(newTitle)
+    if (!slugEdited) setSlug(newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''))
+  }
+
+  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setSlugEdited(true)
+  }
+
+  const handlePickupTimeChange = (index: number, value: string) => { const newTimes = [...pickupTimes]; newTimes[index] = value; setPickupTimes(newTimes) }
+  const addPickupTime = () => setPickupTimes([...pickupTimes, '09:00'])
+  const removePickupTime = (index: number) => { if (pickupTimes.length > 1) setPickupTimes(pickupTimes.filter((_, i) => i !== index)) }
+
+  const handlePlaceChange = (index: number, value: string) => { const newPlaces = [...placesToVisit]; newPlaces[index] = value; setPlacesToVisit(newPlaces) }
+  const addPlace = () => setPlacesToVisit([...placesToVisit, ''])
+  const removePlace = (index: number) => { if (placesToVisit.length > 1) setPlacesToVisit(placesToVisit.filter((_, i) => i !== index)) }
+
+  const handleItineraryChange = (index: number, field: 'title' | 'description', value: string) => { const newItinerary = [...itineraryDays]; newItinerary[index][field] = value; setItineraryDays(newItinerary) }
+  const addItineraryDay = () => setItineraryDays([...itineraryDays, { day: itineraryDays.length + 1, title: '', description: '' }])
+  const removeItineraryDay = (index: number) => { if (itineraryDays.length > 1) { const filtered = itineraryDays.filter((_, i) => i !== index); setItineraryDays(filtered.map((item, i) => ({ ...item, day: i + 1 }))) } }
+
+  const handleGalleryChange = (index: number, value: string) => { const newGallery = [...gallery]; newGallery[index] = value; setGallery(newGallery) }
+  const addGalleryImage = () => setGallery([...gallery, ''])
+  const removeGalleryImage = (index: number) => { if (gallery.length > 1) setGallery(gallery.filter((_, i) => i !== index)) }
+
+  const handleFaqChange = (index: number, field: 'question' | 'answer', value: string) => { const newFaqs = [...faqs]; newFaqs[index][field] = value; setFaqs(newFaqs) }
+  const addFaq = () => setFaqs([...faqs, { question: '', answer: '' }])
+  const removeFaq = (index: number) => { if (faqs.length > 1) setFaqs(faqs.filter((_, i) => i !== index)) }
+
+  const toggleMonth = (month: string) => { setBestMonths(bestMonths.includes(month) ? bestMonths.filter(m => m !== month) : [...bestMonths, month]) }
+
+  const handleDeleteListing = async () => {
+    if (!window.confirm("WARNING: Kya aap sach mein is tour package ko delete karna chahte hain? Yeh wapas recover nahi hoga.")) return
+    setSubmitting(true)
+    const { error } = await supabase.from("listings").delete().eq("id", currentEditId)
+    if (error) { alert("Error deleting: " + error.message); setSubmitting(false) } 
+    else { alert("Deleted successfully!"); router.push(userRole === 'admin' ? "/admin" : "/vendor") }
+  }
+
+  // 🌟 MAIN SUBMIT BUTTON HANDLER
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!startLocation || destinations.length === 0) {
+      setMessage({ type: 'error', text: 'Please select both Origin and at least one Destination!' })
+      return
+    }
+
+    setSubmitting(true)
+    setMessage({ type: '', text: '' })
+
     let finalStatus = "draft";
     if (submitAction === "publish") {
       finalStatus = userRole === "admin" ? "approved" : "pending";
     }
 
+    const dbPayload = generatePayload(finalStatus)
     let error;
 
-    const dbPayload = {
-      title: title,
-      slug: slug,
-      location: fullLocationString, 
-      price: parseFloat(price),
-      description: detailedDescription,
-      status: finalStatus, // Add the calculated status
-      metadata: metadata
-    }
-
-    if (editId) {
-      const res = await supabase
-        .from('listings')
-        .update(dbPayload)
-        .eq('id', editId)
+    if (currentEditId) {
+      const res = await supabase.from('listings').update(dbPayload).eq('id', currentEditId)
       error = res.error
     } else {
-      const res = await supabase
-        .from('listings')
-        .insert([{
-          ...dbPayload,
-          vendor_id: vendorId,
-          category: 'tour',
-        }])
+      const res = await supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }])
       error = res.error
     }
 
     if (error) {
-      if (error.code === '23505') {
-        setMessage({ type: 'error', text: 'Error: Yeh SEO Slug pehle se kisi aur package ne use kiya hua hai. Kripya thoda alag slug banayein.' })
-      } else {
-        setMessage({ type: 'error', text: 'Error: ' + error.message })
-      }
+      setMessage({ type: 'error', text: error.code === '23505' ? 'Error: Yeh SEO Slug pehle se used hai.' : 'Error: ' + error.message })
       setSubmitting(false)
     } else {
-
-      // Only send email if a new item is submitted for approval (not saved as draft)
-      if (!editId && submitAction === 'publish') {
+      if (!currentEditId && submitAction === 'publish') {
         fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'New Tour Package Added 🗺️',
-            data: {
-              Package_Name: title,
-              Duration: finalDuration,
-              Route: fullLocationString,
-              Starting_Price: `₹${price}`,
-              Vendor_ID: vendorId,
-              Action: 'Please review and approve from Admin Panel'
-            }
+            data: { Package_Name: title, Route: dbPayload.location, Starting_Price: `₹${price}`, Vendor_ID: vendorId, Action: 'Review required' }
           })
-        }).catch(err => console.error("Email bhejte waqt error aaya:", err))
+        }).catch(err => console.error(err))
       }
 
-      setMessage({ type: 'success', text: submitAction === 'draft' ? '✅ Draft saved successfully!' : (editId ? '✅ Tour package successfully updated!' : '✅ Tour package submitted for approval!') })
+      setMessage({ type: 'success', text: submitAction === 'draft' ? '✅ Draft saved successfully!' : (currentEditId ? '✅ Tour package successfully updated!' : '✅ Tour package submitted for approval!') })
       setSubmitting(false)
       
-      setTimeout(() => {
-        router.push(userRole === 'admin' ? '/admin' : '/vendor')
-      }, 2000)
+      setTimeout(() => { router.push(userRole === 'admin' ? '/admin' : '/vendor') }, 2000)
     }
   }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-xl">Loading Form...</div>
 
-  const combinedLocationForSEO = destinations.length > 0 
-    ? `${startLocation} to ${destinations.join(', ')}` 
-    : startLocation
+  const combinedLocationForSEO = destinations.length > 0 ? `${startLocation} to ${destinations.join(', ')}` : startLocation
 
   return (
     <div className="min-h-screen p-8 bg-gray-50">
@@ -518,7 +435,7 @@ ${formattedFaqs}
         
         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-extrabold">{editId ? 'Edit Tour Package' : 'Add New Tour Package'}</h1>
+            <h1 className="text-2xl font-extrabold">{currentEditId ? 'Edit Tour Package' : 'Add New Tour Package'}</h1>
             <p className="text-blue-100 text-sm mt-1">Apne tour ki details bharein</p>
           </div>
           <Link href={userRole === 'admin' ? '/admin' : '/add-listing'} className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
@@ -554,21 +471,8 @@ ${formattedFaqs}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <LocationSelector 
-                  label="Start From (Origin)" 
-                  selected={startLocation} 
-                  onChange={setStartLocation} 
-                  multiple={false}
-                  placeholder="Select Origin location..."
-                />
-                
-                <LocationSelector 
-                  label="Destinations Covered" 
-                  selected={destinations} 
-                  onChange={setDestinations} 
-                  multiple={true}
-                  placeholder="Select one or more destinations..."
-                />
+                <LocationSelector label="Start From (Origin)" selected={startLocation} onChange={setStartLocation} multiple={false} placeholder="Select Origin location..."/>
+                <LocationSelector label="Destinations Covered" selected={destinations} onChange={setDestinations} multiple={true} placeholder="Select one or more destinations..."/>
               </div>
 
               {/* Duration & Pickup Times Row */}
@@ -646,13 +550,7 @@ ${formattedFaqs}
               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Short Description</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 focus:ring-2 focus:ring-blue-500" 
-                    placeholder="e.g. October to March is the best time..." 
-                    value={bestTimeToVisit} 
-                    onChange={(e) => setBestTimeToVisit(e.target.value)} 
-                  />
+                  <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 focus:ring-2 focus:ring-blue-500" placeholder="e.g. October to March is the best time..." value={bestTimeToVisit} onChange={(e) => setBestTimeToVisit(e.target.value)} />
                 </div>
                 
                 <div>
@@ -660,14 +558,8 @@ ${formattedFaqs}
                   <div className="flex flex-wrap gap-2">
                     {allMonths.map((month) => (
                       <button
-                        key={month}
-                        type="button"
-                        onClick={() => toggleMonth(month)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                          bestMonths.includes(month) 
-                            ? 'bg-blue-600 text-white border-blue-600' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        }`}
+                        key={month} type="button" onClick={() => toggleMonth(month)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${bestMonths.includes(month) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
                       >
                         {month}
                       </button>
@@ -683,13 +575,7 @@ ${formattedFaqs}
               <div className="mb-8">
                 <label className="block text-sm font-bold text-gray-700 mb-2">Tour Overview</label>
                 <div className="bg-white rounded-lg border border-gray-300">
-                  <ReactQuill 
-                    theme="snow" 
-                    value={overview} 
-                    onChange={setOverview} 
-                    modules={quillModules} 
-                    className="[&_.ql-editor]:min-h-[200px] [&_.ql-editor]:max-h-[400px]" 
-                  />
+                  <ReactQuill theme="snow" value={overview} onChange={setOverview} modules={quillModules} className="[&_.ql-editor]:min-h-[200px] [&_.ql-editor]:max-h-[400px]" />
                 </div>
                 <div className="mt-12"></div>
               </div>
@@ -764,17 +650,10 @@ ${formattedFaqs}
                       <div>
                         <label className="block text-xs font-bold text-gray-600 mb-2">Day Description</label>
                         <div className="bg-white rounded-lg border border-gray-300">
-                          <ReactQuill 
-                            theme="snow" 
-                            value={day.description} 
-                            onChange={(value) => handleItineraryChange(index, 'description', value)} 
-                            modules={quillModules} 
-                            className="[&_.ql-editor]:min-h-[150px] [&_.ql-editor]:max-h-[300px]" 
-                          />
+                          <ReactQuill theme="snow" value={day.description} onChange={(value) => handleItineraryChange(index, 'description', value)} modules={quillModules} className="[&_.ql-editor]:min-h-[150px] [&_.ql-editor]:max-h-[300px]" />
                         </div>
                         <div className="mt-12"></div>
                       </div>
-
                     </div>
                   </div>
                 ))}
@@ -846,37 +725,45 @@ ${formattedFaqs}
               <button type="button" onClick={addFaq} className="mt-2 text-sm bg-blue-100 text-blue-700 font-bold px-4 py-2 rounded-full hover:bg-blue-200">+ Add FAQ</button>
             </div>
 
-            {/* 🌟 NEW: Action Buttons (Delete, Save Draft, Publish) */}
-            <div className="pt-6 border-t flex flex-col md:flex-row gap-4 mt-8">
+            {/* 🌟 ACTION BUTTONS & AUTO-SAVE INDICATOR */}
+            <div className="pt-6 border-t mt-8">
               
-              {editId && (
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm font-medium text-gray-500">
+                  {lastSaved ? `✅ Draft auto-saved at ${lastSaved.toLocaleTimeString()}` : 'Changes will auto-save in background...'}
+                </span>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-4">
+                {currentEditId && (
+                  <button 
+                    type="button" 
+                    onClick={handleDeleteListing}
+                    disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null}
+                    className="w-full md:w-1/4 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-4 rounded-2xl font-black text-lg transition-transform hover:scale-[1.01]"
+                  >
+                    🗑️ Delete
+                  </button>
+                )}
+
                 <button 
-                  type="button" 
-                  onClick={handleDeleteListing}
-                  disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null}
-                  className="w-full md:w-1/4 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-4 rounded-2xl font-black text-lg transition-transform hover:scale-[1.01]"
+                  type="submit" 
+                  onClick={() => setSubmitAction("draft")}
+                  disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
+                  className="w-full md:w-auto flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-2xl font-black text-lg shadow-sm transition-transform hover:scale-[1.01]"
                 >
-                  🗑️ Delete
+                  💾 Save as Draft
                 </button>
-              )}
 
-              <button 
-                type="submit" 
-                onClick={() => setSubmitAction("draft")}
-                disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
-                className="w-full md:w-auto flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-2xl font-black text-lg shadow-sm transition-transform hover:scale-[1.01]"
-              >
-                💾 Save as Draft
-              </button>
-
-              <button 
-                type="submit" 
-                onClick={() => setSubmitAction("publish")}
-                disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
-                className="w-full md:w-auto flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform hover:scale-[1.01] disabled:bg-blue-400"
-              >
-                {submitting ? "Processing..." : (userRole === "admin" ? "🚀 Publish Now" : "🚀 Submit for Approval")}
-              </button>
+                <button 
+                  type="submit" 
+                  onClick={() => setSubmitAction("publish")}
+                  disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
+                  className="w-full md:w-auto flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform hover:scale-[1.01] disabled:bg-blue-400"
+                >
+                  {submitting ? "Processing..." : (userRole === "admin" ? "🚀 Publish Now" : "🚀 Submit for Approval")}
+                </button>
+              </div>
             </div>
             
           </form>
