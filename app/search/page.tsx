@@ -1,8 +1,7 @@
 import { supabase } from '../../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-
-
+import CityDropdown from './CityDropdown' // 🌟 Naya Dropdown Component Import Kiya Hai
 
 export const metadata: Metadata = {
   title: 'Search Results | India Tour Operators',
@@ -24,27 +23,26 @@ const getListingUrl = (listing: any) => {
   if (listing.category === 'tour') return `/tour/${slug}`
   if (listing.category === 'hotel') return `/hotel/${slug}`
   if (listing.category === 'cab') return `/cabs/${slug}`
+  if (listing.category === 'destination') return `/places/${slug}` // Tourist Places
   return `/listing/${slug}`
 }
 
-// 🌟 PERFECT THUMBNAIL EXTRACTOR (Same as Homepage)
+// 🌟 PERFECT THUMBNAIL EXTRACTOR
 const getThumbnail = (listing: any) => {
   const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
-  
-  // 1. Direct Image Match 
   const exactImage = listing.image || listing.thumbnail || meta.thumbnail || meta.image;
-  if (exactImage && typeof exactImage === 'string' && exactImage.trim() !== '') {
-    return exactImage.trim();
-  }
-
-  // 2. Check meta.gallery array as fallback 
+  if (exactImage && typeof exactImage === 'string' && exactImage.trim() !== '') return exactImage.trim();
   if (meta.gallery && Array.isArray(meta.gallery) && meta.gallery.length > 0) {
     const firstValidImg = meta.gallery.find((img: string) => img && typeof img === 'string' && img.trim() !== '')
     if (firstValidImg) return firstValidImg.trim()
   }
-
-  // 3. Custom Default Logo (If no image is found anywhere)
   return '/ITO LOGO.png'
+}
+
+// 🌟 Helper to extract just the source city
+const extractSourceCity = (locationStr?: string) => {
+  if (!locationStr) return '';
+  return locationStr.split(/->|>|,/)[0].trim();
 }
 
 export default async function SearchResultsPage({ 
@@ -54,11 +52,12 @@ export default async function SearchResultsPage({
 }) {
   const resolvedParams = await searchParams
   
-  const service = resolvedParams.service // cab, tour, hotel
+  const service = resolvedParams.service
   const destination = resolvedParams.destination
   const city = resolvedParams.city
   const pickup = resolvedParams.pickup
   const drop = resolvedParams.drop
+  const filterCity = resolvedParams.filterCity // Get filter from URL
   
   // Supabase Base Query
   let query = supabase
@@ -71,19 +70,40 @@ export default async function SearchResultsPage({
     query = query.eq('category', service)
   }
 
-  // 🌟 2. SMART LOCATION FILTER (Map Click & Manual Search dono ke liye)
+  // 2. SMART LOCATION FILTER
   const searchLocation = destination || city || pickup;
   
   if (searchLocation) {
     query = query.ilike('location', `%${searchLocation}%`)
   }
 
-  // Finalize query order
-  const { data: results, error } = await query.order('created_at', { ascending: false })
+  const { data: allResults, error } = await query.order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('Search query error:', error)
-  }
+  if (error) console.error('Search query error:', error)
+
+  const results = allResults || [];
+
+  // 🌟 Extract Unique Source Cities
+  const availableCities = Array.from(
+    new Set(results.map((item: any) => extractSourceCity(item.location)).filter(Boolean))
+  ) as string[]
+
+  // 🌟 Format Data for the Dropdown
+  const availableCitiesData = availableCities.map((cityObj) => ({
+    name: cityObj,
+    count: results.filter(l => extractSourceCity(l.location).toLowerCase() === cityObj.toLowerCase()).length
+  }))
+
+  // 🌟 Apply Active City Filter
+  const filteredResults = filterCity
+    ? results.filter((item) => extractSourceCity(item.location).toLowerCase() === filterCity.toLowerCase())
+    : results;
+
+  // 🌟 Calculate Category Counts
+  const tourCount = filteredResults.filter(l => l.category === 'tour').length
+  const hotelCount = filteredResults.filter(l => l.category === 'hotel').length
+  const cabCount = filteredResults.filter(l => l.category === 'cab').length
+  const placeCount = filteredResults.filter(l => l.category === 'destination').length
 
   // Dynamic heading generator
   let searchHeading = "Search Results"
@@ -108,19 +128,47 @@ export default async function SearchResultsPage({
           </Link>
           <h1 className="text-3xl md:text-4xl font-extrabold mt-2">{searchHeading}</h1>
           <p className="text-blue-200 mt-2 text-lg">
-            Found {results ? results.length : 0} verified options matching your search.
+            Found {filteredResults.length} verified options matching your search.
           </p>
+
+          {/* 🌟 CATEGORY COUNTS BADGE */}
+          <div className="flex justify-start gap-3 mt-6 flex-wrap">
+            <span className="bg-blue-900/50 border border-blue-400/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
+              🗺️ Tours: {tourCount}
+            </span>
+            <span className="bg-blue-900/50 border border-blue-400/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
+              🏨 Hotels: {hotelCount}
+            </span>
+            <span className="bg-blue-900/50 border border-blue-400/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
+              🚖 Cabs: {cabCount}
+            </span>
+            <span className="bg-blue-900/50 border border-blue-400/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
+              📸 Places: {placeCount}
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* 🌟 CLEARED & CLEAN DROPDOWN COMPONENT */}
+      {availableCities.length > 0 && (
+        <div className="max-w-6xl mx-auto px-4 md:px-8 -mt-6 relative z-10 mb-8">
+          <CityDropdown 
+            availableCities={availableCitiesData} 
+            resultsCount={results.length} 
+          />
+        </div>
+      )}
+
       {/* Results Grid */}
-      <div className="max-w-6xl mx-auto px-4 md:px-8 mt-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 mt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {results && results.length > 0 ? (
-            results.map((listing) => {
+          {filteredResults && filteredResults.length > 0 ? (
+            filteredResults.map((listing) => {
               const detailUrl = getListingUrl(listing)
               const imageUrl = getThumbnail(listing)
               const cleanDescription = stripHtml(listing.description)
+              const isInfoContent = listing.category === 'destination' || listing.category === 'blog';
+              const displayLocation = extractSourceCity(listing.location) || 'India';
 
               return (
                 <Link 
@@ -136,7 +184,7 @@ export default async function SearchResultsPage({
                       className={`w-full h-full ${imageUrl === '/ITO LOGO.png' ? 'object-contain p-4' : 'object-cover group-hover:scale-110 transition-transform duration-500'}`} 
                     />
                     <span className="absolute top-3 left-3 text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full uppercase tracking-wide shadow-md">
-                      {listing.category}
+                      {listing.category === 'destination' ? 'Tourist Place' : listing.category}
                     </span>
                   </div>
 
@@ -153,13 +201,19 @@ export default async function SearchResultsPage({
                     <div>
                       <div className="mt-6 flex justify-between items-end border-t border-gray-100 pt-4">
                         <span className="text-gray-500 text-sm font-medium flex items-center truncate max-w-[60%]">
-                          📍 {listing.location ? listing.location.split(',')[0] : 'India'}
+                          📍 {displayLocation}
                         </span>
                         <div className="text-right">
-                          <span className="block text-xs text-gray-400 font-medium mb-1">Starting from</span>
-                          <span className="text-xl font-extrabold text-green-600">
-                            ₹{listing.price}
-                          </span>
+                          {isInfoContent ? (
+                            <span className="block text-sm font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-colors">Explore →</span>
+                          ) : (
+                            <>
+                              <span className="block text-xs text-gray-400 font-medium mb-1">Starting from</span>
+                              <span className="text-xl font-extrabold text-green-600">
+                                ₹{listing.price}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -172,10 +226,11 @@ export default async function SearchResultsPage({
               <span className="text-6xl block mb-4">🔍</span>
               <h2 className="text-2xl font-bold text-gray-800">No results found</h2>
               <p className="text-gray-500 mt-2 max-w-md mx-auto">
-                We couldn't find any services matching your search criteria right now. Try searching for a different location or category.
+                We couldn't find any services matching your search criteria right now.
               </p>
-              <Link href="/" className="inline-block mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors">
-                Go Back Home
+              {/* Reset filter link */}
+              <Link href="/search" className="inline-block mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors">
+                Clear Filters
               </Link>
             </div>
           )}
