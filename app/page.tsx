@@ -1,8 +1,8 @@
 import { supabase } from '../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import MainSearchBox from './components/MainSearchBox'
-import InteractiveIndiaMap from './components/InteractiveIndiaMap' // 👈 Map Component Imported
+// import MainSearchBox from './components/MainSearchBox' // 👈 Temporarily Commented Out
+import InteractiveIndiaMap from './components/InteractiveIndiaMap'
 
 // 🌟 SEO Metadata for India Tour Operators
 export const metadata: Metadata = {
@@ -56,7 +56,7 @@ export default async function Home() {
   // 🌟 PERFECT THUMBNAIL EXTRACTOR (Now with Custom Logo Fallback)
   const getThumbnail = (listing: any) => {
     const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
-    
+
     // 1. Direct Image Match 
     const exactImage = listing.image || listing.thumbnail || meta.thumbnail || meta.image;
     if (exactImage && typeof exactImage === 'string' && exactImage.trim() !== '') {
@@ -100,7 +100,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200 selection:text-blue-900">
-      
+
       {/* --- INJECT GOOGLE FAQ SCHEMA --- */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
@@ -123,10 +123,12 @@ export default async function Home() {
           </p>
         </div>
 
-        {/* --- SEARCH BOX --- */}
+        {/* --- SEARCH BOX (Temporarily Hidden) --- */}
+        {/* 
         <div className="relative z-20 max-w-5xl mx-auto drop-shadow-2xl">
           <MainSearchBox />
-        </div>
+        </div> 
+        */}
 
         {/* 👇 INTERACTIVE MAP ADDED HERE 👇 */}
         <div className="relative z-20 max-w-5xl mx-auto mt-12 pb-8">
@@ -218,7 +220,7 @@ export default async function Home() {
                             {excerpt}
                           </p>
                         </div>
-                        
+
                         <div className="mt-6 flex justify-between items-end border-t border-slate-100 pt-5">
                           <span className="text-slate-500 text-sm font-bold flex items-center truncate max-w-[55%]">📍 {listing.location ? listing.location.split(',')[0] : 'India'}</span>
                           <div className="text-right">
@@ -279,7 +281,7 @@ export default async function Home() {
       {/* --- 📝 SEO KEYWORD TEXT & FAQ SECTION --- */}
       <section className="bg-white py-20 px-4 md:px-8">
         <div className="max-w-5xl mx-auto">
-          
+
           <div className="mb-16">
             <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3"><span>❓</span> Frequently Asked Questions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -295,7 +297,7 @@ export default async function Home() {
           {/* --- 📝 PREMIUM SEO KEYWORD TEXT SECTION --- */}
           <div className="mt-20">
             <div className="bg-gradient-to-br from-slate-50 to-blue-50/50 p-8 md:p-12 rounded-[2.5rem] border border-blue-100 shadow-sm relative overflow-hidden">
-              
+
               {/* Decorative elements */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-200/40 rounded-full blur-3xl -mr-10 -mt-10"></div>
               <div className="absolute bottom-0 left-0 w-40 h-40 bg-amber-200/30 rounded-full blur-3xl -ml-10 -mb-10"></div>
@@ -305,7 +307,7 @@ export default async function Home() {
                 <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-8 tracking-tight">
                   Why Choose India Tour Operators?
                 </h2>
-                
+
                 <div className="space-y-6 text-slate-600 text-lg md:text-xl leading-relaxed font-medium">
                   <p>
                     Welcome to <strong className="text-slate-900 font-black">India Tour Operators</strong>, the leading aggregator platform connecting travelers with verified, top-rated local travel agencies across India. Whether you are looking for customized <strong className="text-blue-600 font-black">tour packages</strong>, reliable <strong className="text-blue-600 font-black">outstation cab booking</strong> services, or luxurious yet affordable <strong className="text-blue-600 font-black">hotel bookings</strong>, we have everything organized in one place.
