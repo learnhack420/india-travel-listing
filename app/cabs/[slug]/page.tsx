@@ -7,7 +7,7 @@ import AIAutoRoutePlanner from '@/app/components/AIAutoRoutePlanner'
 import VendorInfoCard from '@/app/components/VendorInfoCard'
 import RelatedCabSections from '@/app/components/RelatedCabSections'
 
-export const runtime = 'edge';
+
 
 export const revalidate = 60
 

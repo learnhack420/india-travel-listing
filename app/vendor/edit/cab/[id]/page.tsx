@@ -4,7 +4,7 @@ import { supabase } from '../../../../../utils/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
-export const runtime = 'edge';
+
 
 export default function EditCabListing() {
   const router = useRouter()

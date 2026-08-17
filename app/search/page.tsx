@@ -2,7 +2,7 @@ import { supabase } from '../../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-export const runtime = 'edge';
+
 
 export const metadata: Metadata = {
   title: 'Search Results | India Tour Operators',
