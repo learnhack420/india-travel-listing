@@ -1,8 +1,7 @@
 import { supabase } from '../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-// 👇 1. Yahan import ko comment kar diya hai taaki error na aaye
-// import MainSearchBox from './components/MainSearchBox' 
+// import MainSearchBox from './components/MainSearchBox' // Temporarily Commented Out
 import InteractiveIndiaMap from './components/InteractiveIndiaMap'
 
 // 🌟 SEO Metadata for India Tour Operators
@@ -93,70 +92,76 @@ export default async function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200 selection:text-blue-900">
+    <main className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-amber-300 selection:text-slate-900">
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
-      <section className="relative bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 text-white py-20 px-4 md:px-8 overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-20">
-          <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 right-10 w-72 h-72 bg-purple-500 rounded-full blur-3xl"></div>
+      {/* --- 💎 ULTRA-PREMIUM HERO SECTION --- */}
+      <section className="relative bg-slate-950 text-white pt-28 pb-32 px-4 md:px-8 overflow-hidden flex flex-col justify-center min-h-[90vh]">
+        {/* Animated Cinematic Background Orbs */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px] mix-blend-screen"></div>
+          <div className="absolute top-[30%] -right-[10%] w-[40%] h-[40%] bg-amber-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
+          <div className="absolute -bottom-[20%] left-[20%] w-[60%] h-[60%] bg-indigo-600/20 rounded-full blur-[120px] mix-blend-screen"></div>
+          
+          {/* Subtle Grid Overlay for texture */}
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
         </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto text-center mb-12">
-          <span className="inline-block bg-orange-500/20 border border-orange-500/50 text-orange-400 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm mb-6">
-            Official India Tour Operators Portal
-          </span>
-          <h1 className="text-4xl md:text-6xl font-black mt-2 mb-6 leading-tight tracking-tight drop-shadow-lg">
-            Explore India & Beyond with <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-300">Expert Locals</span>
+        <div className="relative z-10 max-w-4xl mx-auto text-center mb-8">
+          <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-md px-5 py-2 rounded-full mb-8 shadow-2xl">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            <span className="text-amber-100 text-xs font-black uppercase tracking-[0.2em]">Official India Tour Portal</span>
+          </div>
+          
+          <h1 className="text-5xl md:text-7xl font-black mt-2 mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
+            Explore India & Beyond with <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-400 to-amber-500 drop-shadow-lg">
+              Expert Locals
+            </span>
           </h1>
-          <p className="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto font-medium opacity-90">
-            Book verified holiday packages, comfortable outstation cabs, and premium hotels handpicked for your ultimate Indian vacation.
+          <p className="text-lg md:text-2xl text-slate-300 max-w-2xl mx-auto font-medium opacity-90 leading-relaxed">
+            Book verified holiday packages, comfortable outstation cabs, and premium hotels handpicked for your ultimate vacation.
           </p>
         </div>
 
-        {/* 👇 2. YAHAN SEARCH BOX KO COMMENT KAR DIYA HAI 👇 */}
-        {/* 
-        <div className="relative z-20 max-w-5xl mx-auto drop-shadow-2xl">
-          <MainSearchBox />
-        </div> 
-        */}
-
-        {/* 👇 Map component wahi rahega 👇 */}
-        <div className="relative z-20 max-w-5xl mx-auto mt-12 pb-8">
+        {/* 👇 INTERACTIVE MAP 👇 */}
+        <div className="relative z-20 max-w-5xl mx-auto mt-8 pb-10 w-full">
           <InteractiveIndiaMap />
         </div>
-
       </section>
 
-      {/* --- TRUST & FEATURES SECTION --- */}
-      <section className="max-w-6xl mx-auto px-4 md:px-8 -mt-10 relative z-30 mb-16">
+      {/* --- 💎 FLOATING TRUST SECTION --- */}
+      {/* Humne isko Hero section ke upar overlap kiya hai (-mt-24) taaki design connected lage */}
+      <section className="max-w-6xl mx-auto px-4 md:px-8 -mt-24 relative z-30 mb-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100 flex items-center gap-4 transform transition-transform hover:-translate-y-1">
-            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-2xl flex-shrink-0">✔️</div>
+          <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-start gap-4 transform transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_50px_-15px_rgba(37,99,235,0.15)] group cursor-default">
+            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500 shadow-sm border border-emerald-100">🛡️</div>
             <div>
-              <h3 className="font-black text-slate-800">Verified Operators</h3>
-              <p className="text-sm text-slate-500 font-medium">100% genuine local partners.</p>
+              <h3 className="font-black text-slate-800 text-xl mb-1">Verified Operators</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Every local partner is 100% genuine and manually verified for your safety.</p>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100 flex items-center gap-4 transform transition-transform hover:-translate-y-1">
-            <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl flex-shrink-0">💎</div>
+          
+          <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-start gap-4 transform transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_50px_-15px_rgba(245,158,11,0.15)] group cursor-default">
+            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500 shadow-sm border border-amber-100">💎</div>
             <div>
-              <h3 className="font-black text-slate-800">Best Price Guarantee</h3>
-              <p className="text-sm text-slate-500 font-medium">Direct booking, zero hidden fees.</p>
+              <h3 className="font-black text-slate-800 text-xl mb-1">Best Price Guarantee</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Direct booking with local experts means zero hidden platform fees.</p>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100 flex items-center gap-4 transform transition-transform hover:-translate-y-1">
-            <div className="w-14 h-14 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-2xl flex-shrink-0">🎧</div>
+
+          <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-start gap-4 transform transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_50px_-15px_rgba(139,92,246,0.15)] group cursor-default">
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500 shadow-sm border border-indigo-100">🎧</div>
             <div>
-              <h3 className="font-black text-slate-800">24/7 Expert Support</h3>
-              <p className="text-sm text-slate-500 font-medium">Assistance anytime, anywhere.</p>
+              <h3 className="font-black text-slate-800 text-xl mb-1">24/7 Expert Support</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">Our dedicated travel assistance team is available anytime, anywhere.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* --- MAIN LISTINGS CONTAINER --- */}
+      {/* --- 💎 PREMIUM LISTINGS CONTAINER --- */}
       <div className="max-w-6xl mx-auto px-4 md:px-8 pb-10">
         {sections.map((section, idx) => {
           if (section.items.length === 0) return null;
@@ -164,19 +169,22 @@ export default async function Home() {
           const hasMoreItems = section.items.length > 6;
 
           return (
-            <div key={idx} className="mb-20">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b-2 border-slate-100 pb-5 gap-4">
+            <div key={idx} className="mb-24">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 pb-4 gap-4">
                 <div>
-                  <span className="text-xs font-black text-blue-600 uppercase tracking-widest mb-1 block">
-                    {section.badge}
-                  </span>
-                  <h2 className="text-3xl md:text-4xl font-black text-slate-900 flex items-center gap-3">
-                    <span className="text-4xl">{section.icon}</span> {section.title}
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="w-8 h-1 bg-amber-400 rounded-full"></span>
+                    <span className="text-xs font-black text-slate-500 uppercase tracking-[0.15em]">
+                      {section.badge}
+                    </span>
+                  </div>
+                  <h2 className="text-3xl md:text-5xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+                    <span className="text-4xl md:text-5xl drop-shadow-sm">{section.icon}</span> {section.title}
                   </h2>
                 </div>
                 {hasMoreItems && (
-                  <Link href={section.viewAllLink} className="hidden md:inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-5 py-2.5 rounded-full transition-colors text-sm">
-                    View All <span className="text-lg leading-none">→</span>
+                  <Link href={section.viewAllLink} className="hidden md:inline-flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm hover:shadow-md text-slate-700 font-bold px-6 py-3 rounded-full transition-all duration-300 text-sm active:scale-95">
+                    Explore All <span className="text-lg leading-none">→</span>
                   </Link>
                 )}
               </div>
@@ -189,21 +197,32 @@ export default async function Home() {
                   const isInfoContent = listing.category === 'destination' || listing.category === 'blog';
 
                   return (
-                    <Link href={detailUrl} key={listing.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-2xl hover:border-blue-100 transition-all duration-300 flex flex-col group cursor-pointer">
-                      <div className="relative h-60 w-full bg-slate-200 overflow-hidden flex items-center justify-center">
+                    <Link href={detailUrl} key={listing.id} className="bg-white rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-1.5 hover:border-blue-200 transition-all duration-500 flex flex-col group cursor-pointer">
+                      
+                      {/* Image Container */}
+                      <div className="relative h-64 w-full bg-slate-100 overflow-hidden flex items-center justify-center">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
                           src={imageUrl} 
                           alt={listing.title} 
-                          className={`w-full h-full ${imageUrl === '/ITO LOGO.png' ? 'object-contain p-4' : 'object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out'}`} 
+                          className={`w-full h-full ${imageUrl === '/ITO LOGO.png' ? 'object-contain p-8 opacity-50' : 'object-cover group-hover:scale-110 transition-transform duration-1000 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]'}`} 
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                        <span className="absolute top-4 left-4 text-xs font-black text-white bg-slate-900/80 backdrop-blur-md px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg">
+                        {/* Elegant Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500"></div>
+                        
+                        {/* Glassmorphic Category Badge */}
+                        <span className="absolute top-5 left-5 text-[10px] font-black text-slate-900 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full uppercase tracking-widest shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-white/50">
                           {listing.category === 'blog' && listing.metadata?.blogCategory ? listing.metadata.blogCategory : listing.category === 'destination' ? 'Tourist Place' : listing.category}
+                        </span>
+                        
+                        {/* Absolute Location Tag on Image for cleaner bottom look */}
+                        <span className="absolute bottom-5 left-5 text-white text-sm font-bold flex items-center gap-1.5 drop-shadow-md">
+                          <span className="text-amber-400">📍</span> {listing.location ? listing.location.split(',')[0] : 'India'}
                         </span>
                       </div>
 
-                      <div className="p-6 md:p-8 flex-1 flex flex-col justify-between relative">
+                      {/* Content Container */}
+                      <div className="p-7 flex-1 flex flex-col justify-between relative bg-white">
                         <div>
                           <h3 className="text-xl md:text-2xl font-black text-slate-800 line-clamp-2 group-hover:text-blue-600 transition-colors leading-tight mb-3">
                             {listing.title}
@@ -214,15 +233,16 @@ export default async function Home() {
                         </div>
 
                         <div className="mt-6 flex justify-between items-end border-t border-slate-100 pt-5">
-                          <span className="text-slate-500 text-sm font-bold flex items-center truncate max-w-[55%]">📍 {listing.location ? listing.location.split(',')[0] : 'India'}</span>
-                          <div className="text-right">
+                          <div className="w-full text-right">
                             {isInfoContent ? (
-                              <span className="block text-sm font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-colors">Explore →</span>
+                              <span className="inline-flex items-center gap-2 text-sm font-black text-blue-600 bg-blue-50/50 hover:bg-blue-600 hover:text-white px-5 py-2.5 rounded-full transition-colors w-full justify-center border border-blue-100 group-hover:border-blue-600">
+                                Read Guide →
+                              </span>
                             ) : (
-                              <>
-                                <span className="block text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Starting From</span>
+                              <div className="flex justify-between items-center w-full">
+                                <span className="block text-[10px] text-slate-400 font-black uppercase tracking-[0.1em]">Starting From</span>
                                 <span className="text-2xl font-black text-emerald-600">₹{listing.price}</span>
-                              </>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -233,9 +253,9 @@ export default async function Home() {
               </div>
 
               {hasMoreItems && (
-                <div className="mt-10 text-center">
-                  <Link href={section.viewAllLink} className="inline-flex items-center justify-center gap-2 bg-white border-2 border-slate-200 hover:border-blue-500 hover:text-blue-600 text-slate-700 font-black px-8 py-3.5 rounded-full transition-all shadow-sm hover:shadow-md">
-                    Explore All {section.title} <span className="text-xl">🚀</span>
+                <div className="mt-12 text-center md:hidden">
+                  <Link href={section.viewAllLink} className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-8 py-4 rounded-full transition-all shadow-lg text-sm w-full">
+                    Explore All {section.title} →
                   </Link>
                 </div>
               )}
@@ -244,24 +264,31 @@ export default async function Home() {
         })}
       </div>
 
-      {/* --- ⭐ TESTIMONIALS SECTION --- */}
-      <section className="bg-slate-900 py-20 px-4 md:px-8 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl"></div>
+      {/* --- 💎 GLASSMORPHISM TESTIMONIALS SECTION --- */}
+      {/* Matches the Map's aesthetic perfectly */}
+      <section className="bg-slate-950 py-24 px-4 md:px-8 text-white relative overflow-hidden">
+        {/* Cinematic Orbs */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px]"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px]"></div>
+        
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-black mb-4">Loved by Travelers</h2>
-            <p className="text-slate-400 font-medium text-lg">See what our community has to say about their experience.</p>
+          <div className="text-center mb-16">
+            <span className="text-amber-400 font-black tracking-widest uppercase text-sm mb-2 block">Our Community</span>
+            <h2 className="text-4xl md:text-5xl font-black mb-4">Loved by Travelers</h2>
+            <p className="text-slate-400 font-medium text-lg max-w-2xl mx-auto">Real experiences from travelers who explored India with our trusted local operators.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
-              <div key={i} className="bg-slate-800 p-8 rounded-[2rem] border border-slate-700 hover:border-amber-500/50 transition-colors">
-                <div className="text-amber-400 mb-4 text-xl">{"★".repeat(t.rating)}</div>
-                <p className="text-slate-300 font-medium leading-relaxed mb-6 italic">"{t.text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center font-black text-white">{t.name[0]}</div>
+              <div key={i} className="bg-white/5 backdrop-blur-xl p-8 rounded-[2rem] border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all duration-300 shadow-2xl flex flex-col justify-between group">
+                <div>
+                  <div className="text-amber-400 mb-6 text-xl tracking-widest drop-shadow-sm">{"★".repeat(t.rating)}</div>
+                  <p className="text-slate-300 font-medium leading-relaxed mb-8 text-lg">"{t.text}"</p>
+                </div>
+                <div className="flex items-center gap-4 pt-6 border-t border-white/10">
+                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center font-black text-white text-lg shadow-inner">{t.name[0]}</div>
                   <div>
-                    <h4 className="font-black text-white">{t.name}</h4>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{t.location}</p>
+                    <h4 className="font-black text-white text-base">{t.name}</h4>
+                    <p className="text-amber-400/80 text-xs font-bold uppercase tracking-widest mt-0.5">{t.location}</p>
                   </div>
                 </div>
               </div>
@@ -270,64 +297,63 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* --- 📝 SEO KEYWORD TEXT & FAQ SECTION --- */}
-      <section className="bg-white py-20 px-4 md:px-8">
+      {/* --- 💎 PREMIUM SEO KEYWORD TEXT & FAQ SECTION --- */}
+      <section className="bg-white py-24 px-4 md:px-8">
         <div className="max-w-5xl mx-auto">
+          
+          {/* SEO Text - Redesigned like an editorial magazine */}
+          <div className="mb-24">
+            <div className="text-center max-w-4xl mx-auto mb-16">
+              <span className="w-12 h-1 bg-amber-400 rounded-full inline-block mb-6"></span>
+              <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-8 tracking-tight leading-tight">
+                Why Choose <span className="text-blue-600">India Tour Operators?</span>
+              </h2>
+              
+              <div className="space-y-6 text-slate-600 text-lg leading-relaxed font-medium text-left md:text-center">
+                <p>
+                  Welcome to <strong className="text-slate-900 font-black">India Tour Operators</strong>, the leading aggregator platform connecting travelers with verified, top-rated local travel agencies across India. Whether you are looking for customized <strong className="text-blue-600 font-black">tour packages</strong>, reliable <strong className="text-blue-600 font-black">outstation cab booking</strong> services, or luxurious yet affordable <strong className="text-blue-600 font-black">hotel bookings</strong>, we have everything organized in one place.
+                </p>
+                <p>
+                  Our platform eliminates the middleman, ensuring that you get the most authentic travel experiences directly from local experts at highly competitive prices. Explore detailed <strong className="text-slate-800 font-bold border-b-2 border-amber-300">tourist place guides</strong>, read our expert <strong className="text-slate-800 font-bold border-b-2 border-amber-300">travel blogs</strong>, and plan your next vacation with complete peace of mind.
+                </p>
+              </div>
+            </div>
+          </div>
 
-          <div className="mb-16">
-            <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3"><span>❓</span> Frequently Asked Questions</h2>
+          {/* Clean Modern FAQ */}
+          <div>
+            <h2 className="text-3xl font-black text-slate-900 mb-10 text-center tracking-tight">Frequently Asked Questions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {homeFaqs.map((faq, i) => (
-                <div key={i} className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                  <h3 className="font-black text-slate-800 mb-2">{faq.q}</h3>
-                  <p className="text-slate-600 text-sm leading-relaxed">{faq.a}</p>
+                <div key={i} className="bg-[#F8FAFC] p-8 rounded-[2rem] border border-slate-200 hover:border-blue-300 transition-colors shadow-sm">
+                  <h3 className="font-black text-slate-800 mb-3 text-lg">{faq.q}</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed font-medium">{faq.a}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* --- 📝 PREMIUM SEO KEYWORD TEXT SECTION --- */}
-          <div className="mt-20">
-            <div className="bg-gradient-to-br from-slate-50 to-blue-50/50 p-8 md:p-12 rounded-[2.5rem] border border-blue-100 shadow-sm relative overflow-hidden">
-
-              {/* Decorative elements */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-200/40 rounded-full blur-3xl -mr-10 -mt-10"></div>
-              <div className="absolute bottom-0 left-0 w-40 h-40 bg-amber-200/30 rounded-full blur-3xl -ml-10 -mb-10"></div>
-
-              <div className="relative z-10 text-center max-w-4xl mx-auto">
-                <span className="text-blue-500 text-5xl mb-6 block drop-shadow-sm">✨</span>
-                <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-8 tracking-tight">
-                  Why Choose India Tour Operators?
-                </h2>
-
-                <div className="space-y-6 text-slate-600 text-lg md:text-xl leading-relaxed font-medium">
-                  <p>
-                    Welcome to <strong className="text-slate-900 font-black">India Tour Operators</strong>, the leading aggregator platform connecting travelers with verified, top-rated local travel agencies across India. Whether you are looking for customized <strong className="text-blue-600 font-black">tour packages</strong>, reliable <strong className="text-blue-600 font-black">outstation cab booking</strong> services, or luxurious yet affordable <strong className="text-blue-600 font-black">hotel bookings</strong>, we have everything organized in one place.
-                  </p>
-                  <p>
-                    Our platform eliminates the middleman, ensuring that you get the most authentic travel experiences directly from local experts at highly competitive prices. Explore detailed <strong className="text-slate-800 font-bold border-b-2 border-amber-300">tourist place guides</strong>, read our expert <strong className="text-slate-800 font-bold border-b-2 border-amber-300">travel blogs</strong>, and plan your next vacation with complete peace of mind.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* --- MASSIVE BOTTOM CTA SECTION --- */}
-      <section className="bg-blue-600 text-white py-16 px-4 md:px-8 border-t-[8px] border-amber-500">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
-          <div className="text-center md:text-left">
-            <h2 className="text-3xl md:text-5xl font-black mb-4 drop-shadow-md">Are you a Travel Expert?</h2>
+      {/* --- 💎 MASSIVE BOTTOM CTA SECTION --- */}
+      <section className="relative py-24 px-4 md:px-8 overflow-hidden bg-blue-600">
+        {/* Dynamic Background Pattern */}
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:20px_20px]"></div>
+        
+        <div className="relative z-10 max-w-5xl mx-auto bg-white/10 backdrop-blur-xl border border-white/20 p-10 md:p-16 rounded-[3rem] shadow-2xl flex flex-col md:flex-row items-center justify-between gap-12 text-center md:text-left">
+          <div className="flex-1">
+            <span className="bg-amber-400 text-slate-900 text-xs font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full mb-6 inline-block">For Businesses</span>
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">Are you a Travel Expert?</h2>
             <p className="text-blue-100 text-lg md:text-xl font-medium max-w-xl">
               List your tour packages, hotels, and cabs on India's fastest-growing travel network and reach thousands of daily tourists.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-            <Link href="/register" className="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-8 py-4 rounded-2xl text-center shadow-lg transition-all text-lg whitespace-nowrap active:scale-95">
+          <div className="flex flex-col w-full md:w-auto gap-4 shrink-0">
+            <Link href="/register" className="bg-white hover:bg-slate-50 text-blue-600 font-black px-10 py-5 rounded-2xl text-center shadow-xl transition-all text-lg active:scale-95 border border-white hover:shadow-2xl">
               Join as Partner →
             </Link>
-            <Link href="/contact" className="bg-blue-700 hover:bg-blue-800 border border-blue-400 text-white font-black px-8 py-4 rounded-2xl text-center transition-all text-lg whitespace-nowrap active:scale-95">
+            <Link href="/contact" className="bg-transparent hover:bg-white/10 border-2 border-white/30 text-white font-black px-10 py-5 rounded-2xl text-center transition-all text-lg active:scale-95">
               Contact Support
             </Link>
           </div>
