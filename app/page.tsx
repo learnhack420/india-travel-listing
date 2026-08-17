@@ -1,7 +1,8 @@
 import { supabase } from '../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-// import MainSearchBox from './components/MainSearchBox' // 👈 Temporarily Commented Out
+// 👇 1. Yahan import ko comment kar diya hai taaki error na aaye
+// import MainSearchBox from './components/MainSearchBox' 
 import InteractiveIndiaMap from './components/InteractiveIndiaMap'
 
 // 🌟 SEO Metadata for India Tour Operators
@@ -53,23 +54,17 @@ export default async function Home() {
     return `/listing/${slug}`
   }
 
-  // 🌟 PERFECT THUMBNAIL EXTRACTOR (Now with Custom Logo Fallback)
+  // 🌟 PERFECT THUMBNAIL EXTRACTOR
   const getThumbnail = (listing: any) => {
     const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
-
-    // 1. Direct Image Match 
     const exactImage = listing.image || listing.thumbnail || meta.thumbnail || meta.image;
     if (exactImage && typeof exactImage === 'string' && exactImage.trim() !== '') {
       return exactImage.trim();
     }
-
-    // 2. Check meta.gallery array as fallback 
     if (meta.gallery && Array.isArray(meta.gallery) && meta.gallery.length > 0) {
       const firstValidImg = meta.gallery.find((img: string) => img && typeof img === 'string' && img.trim() !== '')
       if (firstValidImg) return firstValidImg.trim()
     }
-
-    // 3. Custom Default Logo (If no image is found anywhere)
     return '/ITO LOGO.png'
   }
 
@@ -87,7 +82,6 @@ export default async function Home() {
     { title: "Travel Guides & Blogs", items: blogs, viewAllLink: "/blogs", icon: "📖", badge: "Expert Tips" },
   ]
 
-  // 🌟 GOOGLE FAQ SCHEMA FOR HOMEPAGE SEO
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -101,10 +95,8 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200 selection:text-blue-900">
 
-      {/* --- INJECT GOOGLE FAQ SCHEMA --- */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
-      {/* --- PREMIUM HERO SECTION --- */}
       <section className="relative bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900 text-white py-20 px-4 md:px-8 overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-20">
           <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500 rounded-full blur-3xl"></div>
@@ -123,14 +115,14 @@ export default async function Home() {
           </p>
         </div>
 
-        {/* --- SEARCH BOX (Temporarily Hidden) --- */}
+        {/* 👇 2. YAHAN SEARCH BOX KO COMMENT KAR DIYA HAI 👇 */}
         {/* 
         <div className="relative z-20 max-w-5xl mx-auto drop-shadow-2xl">
           <MainSearchBox />
         </div> 
         */}
 
-        {/* 👇 INTERACTIVE MAP ADDED HERE 👇 */}
+        {/* 👇 Map component wahi rahega 👇 */}
         <div className="relative z-20 max-w-5xl mx-auto mt-12 pb-8">
           <InteractiveIndiaMap />
         </div>
