@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-export const runtime = 'edge';
 
 // Ensure your Environment Variables are correctly set in Cloudflare/Vercel
 const supabase = createClient(
