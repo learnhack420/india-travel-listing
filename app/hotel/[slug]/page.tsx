@@ -2,6 +2,8 @@ import { supabase } from '../../../utils/supabase'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge';
+
 export const revalidate = 60
 
 // 🌟 Helper function to clean the new location format (Replaces ' > ' with ', ')

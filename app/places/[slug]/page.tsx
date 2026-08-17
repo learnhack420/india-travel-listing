@@ -6,6 +6,8 @@ import FloatingContact from '../../components/FloatingContact'
 import RelatedPlaceSections from '../../components/RelatedPlaceSections'
 import AITouristGuide from '../../components/AITouristGuide'
 
+export const runtime = 'edge';
+
 export const revalidate = 60 
 
 const cleanText = (htmlString: string) => {

@@ -9,6 +9,8 @@ import AIAutoFAQs from '../../components/AIAutoFAQs'
 import VendorInfoCard from '../../components/VendorInfoCard'
 import RelatedTourSections from '../../components/RelatedTourSections'
 
+export const runtime = 'edge';
+
 export const revalidate = 60
 
 const formatLocation = (locStr?: string) => {

@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { supabase } from '../../../../utils/supabase'
 import { useRouter, useParams } from 'next/navigation'
 
+export const runtime = 'edge';
+
 export default function EditListingRouter() {
   const router = useRouter()
   const params = useParams()
