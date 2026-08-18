@@ -8,7 +8,8 @@ export default function VendorInfoCard({ vendorId }: { vendorId?: string }) {
     company_name: 'Raj Cabs Official',
     phone: '9892455466',
     address: 'Mumbai, Maharashtra',
-    website: 'https://www.tourismdna.com'
+    website: 'https://www.tourismdna.com',
+    logo_url: '' // 🌟 Default fallback mein empty logo
   })
   const [loading, setLoading] = useState(false)
 
@@ -39,16 +40,29 @@ export default function VendorInfoCard({ vendorId }: { vendorId?: string }) {
   const address = vendor?.address || vendor?.location || 'Mumbai, Maharashtra'
   const website = (vendor?.website || 'https://www.tourismdna.com').trim()
   const formattedWebsite = website.startsWith('http') ? website : `https://${website}`
+  
+  // 🌟 NEW: Extract Logo URL
+  const logoUrl = vendor?.logo_url
 
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-3xl shadow-xl border border-slate-700 my-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-xl font-black shadow-inner">
-          🏢
-        </div>
+      <div className="flex items-center gap-4 mb-4">
+        
+        {/* 🌟 LOGO YA DEFAULT ICON RENDER KARNE KA LOGIC */}
+        {logoUrl ? (
+          <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-inner overflow-hidden border border-slate-600 p-1 flex-shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoUrl} alt={`${firmName} Logo`} className="w-full h-full object-contain" />
+          </div>
+        ) : (
+          <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-2xl font-black shadow-inner flex-shrink-0">
+            🏢
+          </div>
+        )}
+
         <div>
           <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Listed By Partner</span>
-          <h3 className="text-lg font-black text-white">{firmName}</h3>
+          <h3 className="text-lg font-black text-white leading-tight">{firmName}</h3>
         </div>
       </div>
 

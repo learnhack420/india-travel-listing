@@ -11,14 +11,78 @@ export default function Register() {
     password: '',
     phone: '',          
     location: '',       
+    website: '',        // 🌟 NEW: Added website field to registration form
     role: 'vendor'      // Role is strictly fixed to 'vendor' now
   })
+  
+  // States for Logo and Visiting Card
+  const [logoUrl, setLogoUrl] = useState('')
+  const [visitingCardUrl, setVisitingCardUrl] = useState('')
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const [isUploadingCard, setIsUploadingCard] = useState(false)
+
   const [status, setStatus] = useState({ loading: false, success: false, error: '', message: '' })
   const router = useRouter()
+
+  // SECURE SUPABASE STORAGE UPLOAD HELPER FUNCTION
+  const uploadToSupabase = async (file: File, folderName: string) => {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
+      const filePath = `${folderName}/${fileName}`
+
+      const { data, error } = await supabase.storage
+        .from('documents') 
+        .upload(filePath, file)
+
+      if (error) {
+        throw error
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath)
+
+      return publicUrlData.publicUrl
+
+    } catch (error: any) {
+      console.error("Supabase image upload error:", error)
+      alert("Image upload fail ho gaya: " + error.message)
+      return null
+    }
+  }
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingLogo(true)
+    const url = await uploadToSupabase(file, 'logos') 
+    if (url) setLogoUrl(url)
+    setIsUploadingLogo(false)
+  }
+
+  const handleCardUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingCard(true)
+    const url = await uploadToSupabase(file, 'visiting_cards') 
+    if (url) setVisitingCardUrl(url)
+    setIsUploadingCard(false)
+  }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus({ loading: true, success: false, error: '', message: '' })
+
+    // Validations for document uploads
+    if (!logoUrl) {
+      setStatus({ loading: false, success: false, error: 'Please upload your Agency Logo.', message: '' })
+      return
+    }
+    if (!visitingCardUrl) {
+      setStatus({ loading: false, success: false, error: 'Please upload your Visiting Card.', message: '' })
+      return
+    }
 
     // Supabase Auth se naya user create karna aur metadata mein extra fields bhejna
     const { data, error } = await supabase.auth.signUp({
@@ -29,7 +93,10 @@ export default function Register() {
           full_name: formData.fullName,
           role: formData.role,
           phone: formData.phone,
-          location: formData.location
+          location: formData.location,
+          website: formData.website,             // 🌟 Pass website to metadata
+          logo_url: logoUrl,                 
+          visiting_card_url: visitingCardUrl 
         }
       }
     })
@@ -49,6 +116,9 @@ export default function Register() {
             Phone: formData.phone,
             Account_Type: 'VENDOR',
             Operating_Location: formData.location || 'N/A',
+            Website: formData.website || 'N/A', // 🌟 Included in email payload
+            Logo: logoUrl,                   
+            Visiting_Card: visitingCardUrl,  
             Admin_Action: 'Pending Approval (Please approve from Admin Panel)'
           }
         })
@@ -57,7 +127,6 @@ export default function Register() {
       // Set success state to show the success banner
       setStatus({ loading: false, success: true, error: '', message: '' })
       
-      // Thoda time badha diya hai taaki vendor carefully message padh sake (6 seconds)
       setTimeout(() => {
         router.push('/login')
       }, 6000)
@@ -65,7 +134,7 @@ export default function Register() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-sky-300 via-cyan-200 to-orange-100 p-4 font-sans">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-sky-300 via-cyan-200 to-orange-100 p-4 font-sans py-12">
       
       {/* Custom CSS for Beach Theme Animations */}
       <style dangerouslySetInnerHTML={{__html: `
@@ -106,7 +175,7 @@ export default function Register() {
 
 
       {/* --- REGISTRATION CARD (GLASSMORPHISM) --- */}
-      <div className="relative z-10 w-full max-w-md bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.15)] p-8 border border-white/50">
+      <div className="relative z-10 w-full max-w-lg bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.15)] p-8 border border-white/50 my-10">
         
         {/* SUCCESS SCREEN */}
         {status.success ? (
@@ -117,7 +186,7 @@ export default function Register() {
               Congratulations!<br/>Registration Successful
             </h2>
             
-            {/* 🌟 NEW: CHECK EMAIL BANNER */}
+            {/* CHECK EMAIL BANNER */}
             <div className="bg-amber-50 border-2 border-amber-200 p-5 rounded-2xl mb-8 shadow-sm">
               <div className="text-4xl mb-2">📧</div>
               <h3 className="text-xl font-black text-amber-800 mb-2">Check Your Email & Confirm!</h3>
@@ -143,15 +212,26 @@ export default function Register() {
 
             <form onSubmit={handleRegister} className="space-y-5">
               
-              {/* Name of Vendor */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Name of Vendor / Agency
-                </label>
-                <input type="text" required 
-                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
-                  value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
-                  placeholder="Ex: Raj Travels & Tours" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Name of Vendor */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Agency Name
+                  </label>
+                  <input type="text" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                    value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
+                    placeholder="Ex: Raj Travels" />
+                </div>
+
+                {/* Mobile Number */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Mobile Number</label>
+                  <input type="tel" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                    value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} 
+                    placeholder="Ex: 9876543210" />
+                </div>
               </div>
 
               {/* Email Address */}
@@ -161,15 +241,6 @@ export default function Register() {
                   className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
                   value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} 
                   placeholder="email@example.com" />
-              </div>
-
-              {/* Mobile Number */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Mobile Number</label>
-                <input type="tel" required 
-                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
-                  value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} 
-                  placeholder="Ex: 9876543210" />
               </div>
 
               {/* Operating Location */}
@@ -182,16 +253,68 @@ export default function Register() {
                 <p className="text-xs text-cyan-700 mt-2 font-medium">📍 Aap kis sheher se apni services operate karte hain?</p>
               </div>
 
+              {/* 🌟 NEW: Business Website URL */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Business Website URL (Optional)</label>
+                <input type="url" 
+                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                  value={formData.website} onChange={(e) => setFormData({...formData, website: e.target.value})} 
+                  placeholder="https://www.yourwebsite.com" />
+              </div>
+
+              {/* DOCUMENT UPLOADS & PREVIEWS */}
+              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 transition-all">
+                <h3 className="block text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Business Verification Documents</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Agency Logo */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-2">Agency Logo *</label>
+                    {logoUrl ? (
+                      <div className="relative group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={logoUrl} alt="Logo Preview" className="w-full h-24 object-contain bg-white border border-slate-200 rounded-xl p-2" />
+                        <button type="button" onClick={() => setLogoUrl('')} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-md hover:bg-red-600">✕</button>
+                      </div>
+                    ) : (
+                      <label className="w-full h-24 flex flex-col items-center justify-center px-4 py-2 border-2 border-dashed border-cyan-300 bg-white/50 rounded-xl cursor-pointer hover:bg-white hover:border-cyan-500 transition-all">
+                        <span className="text-xl mb-1">{isUploadingLogo ? '⏳' : '📁'}</span>
+                        <span className="text-xs font-bold text-cyan-700">{isUploadingLogo ? 'Uploading...' : 'Upload Logo'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={isUploadingLogo} />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Visiting Card */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-2">Visiting Card *</label>
+                    {visitingCardUrl ? (
+                      <div className="relative group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={visitingCardUrl} alt="Card Preview" className="w-full h-24 object-cover border border-slate-200 rounded-xl shadow-sm" />
+                        <button type="button" onClick={() => setVisitingCardUrl('')} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-md hover:bg-red-600">✕</button>
+                      </div>
+                    ) : (
+                      <label className="w-full h-24 flex flex-col items-center justify-center px-4 py-2 border-2 border-dashed border-cyan-300 bg-white/50 rounded-xl cursor-pointer hover:bg-white hover:border-cyan-500 transition-all">
+                        <span className="text-xl mb-1">{isUploadingCard ? '⏳' : '🪪'}</span>
+                        <span className="text-xs font-bold text-cyan-700">{isUploadingCard ? 'Uploading...' : 'Upload Card'}</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleCardUpload} disabled={isUploadingCard} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Password */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Create Password</label>
                 <input type="password" required 
                   className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
                   value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} 
                   placeholder="Minimum 6 characters" />
               </div>
 
-              <button type="submit" disabled={status.loading}
+              <button type="submit" disabled={status.loading || isUploadingLogo || isUploadingCard}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-black py-4 px-4 rounded-xl transition-all disabled:opacity-70 mt-6 shadow-lg shadow-cyan-500/30 transform hover:-translate-y-1">
                 {status.loading ? (
                   <span className="flex items-center justify-center gap-2">

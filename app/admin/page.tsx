@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { supabase } from '../../utils/supabase'
+import { supabase } from '@/utils/supabase' // Path alias check kar lein
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -442,6 +442,11 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Partner Info</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact & Agency</th>
+                    
+                    {/* 🌟 NEW COLUMNS ADDED HERE */}
+                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Logo</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Visiting Card</th>
+                    
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -457,6 +462,29 @@ export default function AdminDashboard() {
                         <div className="text-sm font-bold text-gray-700">{vendor.company_name || 'N/A'}</div>
                         <div className="text-sm text-gray-500">{vendor.phone || 'No Phone'}</div>
                       </td>
+
+                      {/* 🌟 NEW: LOGO PREVIEW ICON */}
+                      <td className="px-6 py-4 text-center">
+                        {vendor.logo_url ? (
+                          <a href={vendor.logo_url} target="_blank" rel="noopener noreferrer" className="text-2xl hover:scale-110 transition-transform inline-block" title="View Logo">
+                            🖼️
+                          </a>
+                        ) : (
+                          <span className="text-gray-300 text-sm font-bold">N/A</span>
+                        )}
+                      </td>
+
+                      {/* 🌟 NEW: VISITING CARD PREVIEW ICON */}
+                      <td className="px-6 py-4 text-center">
+                        {vendor.visiting_card_url ? (
+                          <a href={vendor.visiting_card_url} target="_blank" rel="noopener noreferrer" className="text-2xl hover:scale-110 transition-transform inline-block" title="View Visiting Card">
+                            🪪
+                          </a>
+                        ) : (
+                          <span className="text-gray-300 text-sm font-bold">N/A</span>
+                        )}
+                      </td>
+
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${
                           vendor.approval_status === 'approved' ? 'bg-green-100 text-green-800' : 
@@ -528,7 +556,6 @@ export default function AdminDashboard() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title & Location</th>
-                      {/* 🌟 NEW COLUMN HEADER */}
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vendor Info</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Category & Price</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
@@ -543,7 +570,6 @@ export default function AdminDashboard() {
                           <div className="text-sm text-gray-500">📍 {formatLocationForList(listing.location)}</div>
                         </td>
                         
-                        {/* 🌟 NEW COLUMN DATA: Show Vendor info dynamically */}
                         <td className="px-6 py-4">
                           {(() => {
                             const vendor = allProfiles.find(p => p.id === listing.vendor_id);
