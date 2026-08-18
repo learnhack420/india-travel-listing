@@ -1,7 +1,7 @@
 import { supabase } from '../../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import CityDropdown from './CityDropdown' // 🌟 Naya Dropdown Component Import Kiya Hai
+import CityDropdown from './CityDropdown' 
 
 export const metadata: Metadata = {
   title: 'Search Results | India Tour Operators',
@@ -17,19 +17,24 @@ const stripHtml = (html: string) => {
     .replace(/&amp;/g, '&');   // Replace ampersands
 }
 
-// Listing URL Helper
+// Listing URL Helper (Super flexible for 'cab' and 'cabs')
 const getListingUrl = (listing: any) => {
   const slug = listing.slug || listing.id
-  if (listing.category === 'tour') return `/tour/${slug}`
-  if (listing.category === 'hotel') return `/hotel/${slug}`
-  if (listing.category === 'cab') return `/cabs/${slug}`
-  if (listing.category === 'destination') return `/places/${slug}` // Tourist Places
+  const cat = listing.category?.toLowerCase() || '';
+  if (cat.includes('tour')) return `/tour/${slug}`
+  if (cat.includes('hotel')) return `/hotel/${slug}`
+  if (cat.includes('cab')) return `/cabs/${slug}` 
+  if (cat.includes('destination')) return `/places/${slug}`
   return `/listing/${slug}`
 }
 
 // 🌟 PERFECT THUMBNAIL EXTRACTOR
 const getThumbnail = (listing: any) => {
-  const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
+  let meta: any = {};
+  try {
+    meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
+  } catch (e) { meta = {}; }
+
   const exactImage = listing.image || listing.thumbnail || meta.thumbnail || meta.image;
   if (exactImage && typeof exactImage === 'string' && exactImage.trim() !== '') return exactImage.trim();
   if (meta.gallery && Array.isArray(meta.gallery) && meta.gallery.length > 0) {
@@ -56,8 +61,12 @@ export default async function SearchResultsPage({
   const destination = resolvedParams.destination
   const city = resolvedParams.city
   const pickup = resolvedParams.pickup
-  const drop = resolvedParams.drop
-  const filterCity = resolvedParams.filterCity // Get filter from URL
+  const filterCity = resolvedParams.filterCity 
+  
+  // URL Parameters for filtering
+  const theme = resolvedParams.theme 
+  const cabTripType = resolvedParams.type // 'local' | 'outstation'
+  const cabServiceType = resolvedParams.cabType // 'point-to-point' | 'package' | 'one-way' | 'round-trip'
   
   // Supabase Base Query
   let query = supabase
@@ -65,9 +74,9 @@ export default async function SearchResultsPage({
     .select('*')
     .eq('status', 'approved')
 
-  // 1. Filter by Service Category
+  // 1. Filter by Service Category (Smart '%ilike%' to cover 'cab' or 'cabs')
   if (service) {
-    query = query.eq('category', service)
+    query = query.ilike('category', `%${service}%`)
   }
 
   // 2. SMART LOCATION FILTER
@@ -81,7 +90,60 @@ export default async function SearchResultsPage({
 
   if (error) console.error('Search query error:', error)
 
-  const results = allResults || [];
+  let results = allResults || [];
+
+  // 🌟 3. ULTRA-SMART METADATA FILTERING
+  if (theme || cabTripType || cabServiceType) {
+    results = results.filter((item: any) => {
+      let metaStr = '';
+      let metaObj: any = {};
+      try {
+        const parsed = typeof item.metadata === 'string' ? JSON.parse(item.metadata || '{}') : (item.metadata || {});
+        metaObj = parsed;
+        metaStr = JSON.stringify(parsed).toLowerCase();
+      } catch(e) { metaStr = ''; }
+      
+      let keep = true;
+      const itemCategory = item.category?.toLowerCase() || '';
+      const itemTitle = item.title?.toLowerCase() || '';
+
+      // Theme Filter (Tours)
+      if (theme && itemCategory.includes('tour')) {
+        const itemTheme = metaObj.tourTheme;
+        if (!itemTheme) keep = false;
+        else if (Array.isArray(itemTheme)) {
+          if (!itemTheme.some((t: string) => t.toLowerCase() === theme.toLowerCase())) keep = false;
+        } else if (typeof itemTheme === 'string') {
+          if (itemTheme.toLowerCase() !== theme.toLowerCase()) keep = false;
+        } else {
+          keep = false;
+        }
+      }
+
+      // Cab Trip Type Filter (Local vs Outstation) - Deep Search
+      if (cabTripType && itemCategory.includes('cab')) {
+        const targetRaw = cabTripType.toLowerCase();
+        const targetSpace = cabTripType.replace(/-/g, ' ').toLowerCase();
+
+        const matchesAnywhere = metaStr.includes(targetRaw) || metaStr.includes(targetSpace) || itemTitle.includes(targetRaw) || itemTitle.includes(targetSpace);
+        
+        if (!matchesAnywhere) keep = false;
+      }
+
+      // Cab Service Type Filter (Round Trip, One Way, etc.) - Deep Search
+      if (cabServiceType && itemCategory.includes('cab')) {
+        const targetRaw = cabServiceType.toLowerCase(); // 'round-trip'
+        const targetSpace = cabServiceType.replace(/-/g, ' ').toLowerCase(); // 'round trip'
+        const targetJoined = cabServiceType.replace(/-/g, '').toLowerCase(); // 'roundtrip'
+        
+        const matchesAnywhere = metaStr.includes(targetRaw) || metaStr.includes(targetSpace) || metaStr.includes(targetJoined) || itemTitle.includes(targetRaw) || itemTitle.includes(targetSpace) || itemTitle.includes(targetJoined);
+
+        if (!matchesAnywhere) keep = false;
+      }
+
+      return keep;
+    });
+  }
 
   // 🌟 Extract Unique Source Cities
   const availableCities = Array.from(
@@ -91,29 +153,38 @@ export default async function SearchResultsPage({
   // 🌟 Format Data for the Dropdown
   const availableCitiesData = availableCities.map((cityObj) => ({
     name: cityObj,
-    count: results.filter(l => extractSourceCity(l.location).toLowerCase() === cityObj.toLowerCase()).length
+    count: results.filter((l: any) => extractSourceCity(l.location).toLowerCase() === cityObj.toLowerCase()).length
   }))
 
   // 🌟 Apply Active City Filter
   const filteredResults = filterCity
-    ? results.filter((item) => extractSourceCity(item.location).toLowerCase() === filterCity.toLowerCase())
+    ? results.filter((item: any) => extractSourceCity(item.location).toLowerCase() === filterCity.toLowerCase())
     : results;
 
-  // 🌟 Calculate Category Counts
-  const tourCount = filteredResults.filter(l => l.category === 'tour').length
-  const hotelCount = filteredResults.filter(l => l.category === 'hotel').length
-  const cabCount = filteredResults.filter(l => l.category === 'cab').length
-  const placeCount = filteredResults.filter(l => l.category === 'destination').length
+  // 🌟 Calculate Category Counts (Case insensitive and safe)
+  const tourCount = filteredResults.filter((l: any) => l.category?.toLowerCase().includes('tour')).length
+  const hotelCount = filteredResults.filter((l: any) => l.category?.toLowerCase().includes('hotel')).length
+  const cabCount = filteredResults.filter((l: any) => l.category?.toLowerCase().includes('cab')).length
+  const placeCount = filteredResults.filter((l: any) => l.category?.toLowerCase().includes('destination')).length
 
   // Dynamic heading generator
   let searchHeading = "Search Results"
-  if (service === 'tour') searchHeading = `Tour Packages for ${destination || 'Anywhere'}`
+  
+  if (theme) {
+    const formattedTheme = theme.charAt(0).toUpperCase() + theme.slice(1).replace(/-/g, ' ');
+    searchHeading = `${formattedTheme} Packages`
+  } 
+  else if (service?.toLowerCase().includes('cab')) {
+    const tripText = cabTripType ? (cabTripType.charAt(0).toUpperCase() + cabTripType.slice(1)) : '';
+    const cabTypeText = cabServiceType ? cabServiceType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+    
+    const parts = [tripText, cabTypeText, 'Cabs'].filter(Boolean);
+    searchHeading = parts.length > 0 ? parts.join(' ') : 'Cab Services';
+    if (city || pickup) searchHeading += ` in ${city || pickup}`;
+  }
+  else if (service === 'tour') searchHeading = `Tour Packages for ${destination || 'Anywhere'}`
   else if (service === 'hotel') searchHeading = `Hotels in ${city || 'Anywhere'}`
-  else if (service === 'cab') {
-    if (resolvedParams.type === 'local') searchHeading = `Local Cabs in ${city || 'City'}`
-    else if (resolvedParams.type === 'outstation') searchHeading = `Outstation Cabs from ${pickup || 'City'}`
-    else searchHeading = "Cab Services"
-  } else if (searchLocation) {
+  else if (searchLocation) {
     searchHeading = `Best Places to Explore in ${searchLocation}`
   }
 
@@ -163,12 +234,17 @@ export default async function SearchResultsPage({
       <div className="max-w-6xl mx-auto px-4 md:px-8 mt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredResults && filteredResults.length > 0 ? (
-            filteredResults.map((listing) => {
+            filteredResults.map((listing: any) => {
               const detailUrl = getListingUrl(listing)
               const imageUrl = getThumbnail(listing)
               const cleanDescription = stripHtml(listing.description)
-              const isInfoContent = listing.category === 'destination' || listing.category === 'blog';
+              const isInfoContent = listing.category?.toLowerCase() === 'destination' || listing.category?.toLowerCase() === 'blog';
               const displayLocation = extractSourceCity(listing.location) || 'India';
+              
+              // Formatting Category Display Label
+              const displayCategory = listing.category?.toLowerCase().includes('cab') 
+                ? 'Cab Service' 
+                : listing.category === 'destination' ? 'Tourist Place' : listing.category;
 
               return (
                 <Link 
@@ -184,7 +260,7 @@ export default async function SearchResultsPage({
                       className={`w-full h-full ${imageUrl === '/ITO LOGO.png' ? 'object-contain p-4' : 'object-cover group-hover:scale-110 transition-transform duration-500'}`} 
                     />
                     <span className="absolute top-3 left-3 text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full uppercase tracking-wide shadow-md">
-                      {listing.category === 'destination' ? 'Tourist Place' : listing.category}
+                      {displayCategory}
                     </span>
                   </div>
 
@@ -226,11 +302,11 @@ export default async function SearchResultsPage({
               <span className="text-6xl block mb-4">🔍</span>
               <h2 className="text-2xl font-bold text-gray-800">No results found</h2>
               <p className="text-gray-500 mt-2 max-w-md mx-auto">
-                We couldn't find any services matching your search criteria right now.
+                We couldn't find any {service?.includes('cab') ? 'cabs' : 'packages'} matching this filter right now.
               </p>
               {/* Reset filter link */}
-              <Link href="/search" className="inline-block mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors">
-                Clear Filters
+              <Link href={`/search${service ? `?service=${service}` : ''}`} className="inline-block mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors capitalize">
+                View All {service?.includes('cab') ? 'Cabs' : 'Tours'}
               </Link>
             </div>
           )}

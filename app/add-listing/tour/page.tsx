@@ -21,22 +21,23 @@ function TourFormContent() {
   const [userRole, setUserRole] = useState('') 
   const [message, setMessage] = useState({ type: '', text: '' })
 
-  // 🌟 NEW: Admin Vendor List
   const [vendorsList, setVendorsList] = useState<any[]>([])
 
-  // Track button action (draft or publish)
+  // 🌟 NEW STATE: Dynamic Categories from Database
+  const [tourThemesOptions, setTourThemesOptions] = useState<{value: string, label: string}[]>([])
+
   const [submitAction, setSubmitAction] = useState('publish')
   
-  // Auto-save tracking states
   const [currentEditId, setCurrentEditId] = useState<string | null>(editId)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
-  // 1. Basic Info & SEO States
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
   
-  // Thumbnail & Metadata
+  // 🌟 MODIFIED STATE: Array for Multiple Theme/Category Selection
+  const [tourThemes, setTourThemes] = useState<string[]>([])
+
   const [thumbnail, setThumbnail] = useState('')
   const [isUploadingThumb, setIsUploadingThumb] = useState(false)
 
@@ -47,7 +48,6 @@ function TourFormContent() {
   const [startLocation, setStartLocation] = useState('')
   const [destinations, setDestinations] = useState<string[]>([])
   
-  // Duration & Fixed Pickup Times State
   const [durationDays, setDurationDays] = useState('3')
   const [durationNights, setDurationNights] = useState('2')
   const [durationHours, setDurationHours] = useState('0')
@@ -55,29 +55,23 @@ function TourFormContent() {
 
   const [price, setPrice] = useState('') 
   
-  // Best Time to Visit State
   const [bestTimeToVisit, setBestTimeToVisit] = useState('')
   const [bestMonths, setBestMonths] = useState<string[]>([])
   
-  // 2. Pricing & Description
   const [overview, setOverview] = useState('') 
   const [personPrices, setPersonPrices] = useState({ min2: '', min4: '', min6: '', min8: '' })
   const [cabPrices, setCabPrices] = useState({ hatchback: '', sedan: '', suv: '', innova: '', tempo: '' })
   
-  // Extra Time Charges State
   const [cabExtraCharges, setCabExtraCharges] = useState({ hatchback: '', sedan: '', suv: '', innova: '', tempo: '' })
   
-  // 3. Tour Details 
   const [placesToVisit, setPlacesToVisit] = useState(['']) 
   const [itineraryDays, setItineraryDays] = useState([{ day: 1, title: '', description: '' }]) 
   const [inclusions, setInclusions] = useState('')
   const [exclusions, setExclusions] = useState('')
 
-  // 4. Image Gallery
   const [gallery, setGallery] = useState([''])
   const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null)
 
-  // 5. FAQs State
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
 
   const quillModules = {
@@ -91,11 +85,29 @@ function TourFormContent() {
   }
 
   const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
+  
   useEffect(() => {
+    fetchDynamicCategories() 
     checkVendorAndLoadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId])
+
+  async function fetchDynamicCategories() {
+    const { data, error } = await supabase
+      .from('tour_categories')
+      .select('label, value')
+      .order('created_at', { ascending: true })
+
+    if (data && !error) {
+      setTourThemesOptions(data)
+    } else {
+      setTourThemesOptions([
+        { value: 'honeymoon', label: '💑 Honeymoon Packages' },
+        { value: 'family', label: '👨‍👩‍👧‍👦 Family Tour Packages' },
+        { value: 'general', label: '🌐 General Sightseeing' }
+      ])
+    }
+  }
 
   async function checkVendorAndLoadData() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -118,9 +130,7 @@ function TourFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
-    // 🌟 UPGRADED ADMIN FEATURE: Robust Vendor Fetching
     if (profile.role === 'admin') {
-      // Hum saare columns select kar rahe hain taaki koi bhi name field ho toh catch ho jaye
       const { data: vendorsData, error: vendorErr } = await supabase
         .from('profiles')
         .select('*') 
@@ -128,7 +138,6 @@ function TourFormContent() {
         .order('created_at', { ascending: false });
       
       if (vendorErr) {
-        console.error("Supabase RLS Error: Vendor list fetch fail ho gayi!", vendorErr);
         setMessage({ type: 'error', text: 'Admin Warning: Vendor list load nahi hui. Shayad Profiles table par RLS active hai.' })
       } else if (vendorsData) {
         setVendorsList(vendorsData);
@@ -145,7 +154,6 @@ function TourFormContent() {
         return
       }
 
-      // 🌟 ADMIN FEATURE: Set Vendor ID to the listing's actual owner
       if (listing.vendor_id) setVendorId(listing.vendor_id)
 
       setTitle(listing.title || '')
@@ -155,6 +163,11 @@ function TourFormContent() {
 
       const meta = listing.metadata || {}
       
+      // 🌟 Handle Legacy Single String or New Array for Tour Themes
+      if (meta.tourTheme) {
+        setTourThemes(Array.isArray(meta.tourTheme) ? meta.tourTheme : [meta.tourTheme])
+      }
+
       setThumbnail(meta.thumbnail || '')
       setMetaTitle(meta.seo?.metaTitle || '')
       setMetaDescription(meta.seo?.metaDescription || '')
@@ -196,7 +209,13 @@ function TourFormContent() {
     setLoading(false)
   }
 
-  // 🌟 CENTRALIZED PAYLOAD GENERATOR
+  // 🌟 NEW FUNCTION: Toggle Multiple Themes
+  const toggleTheme = (value: string) => {
+    setTourThemes(prev =>
+      prev.includes(value) ? prev.filter(t => t !== value) : [...prev, value]
+    )
+  }
+
   const generatePayload = (statusAction: string) => {
     const formattedDestinations = destinations.join(', ')
     const fullLocationString = `${startLocation} ${destinations.length > 0 ? '➔ ' + formattedDestinations : ''}`.trim()
@@ -237,9 +256,16 @@ function TourFormContent() {
     const formattedPlaces = placesToVisit.filter(p => p.trim() !== '').join(', ') || 'Not provided'
     const formattedBestTime = `Description: ${bestTimeToVisit || 'Not specified'}\nRecommended Months: ${bestMonths.length > 0 ? bestMonths.join(', ') : 'All Year Round'}`.trim()
 
+    // 🌟 Format Multiple Themes for Description
+    const selectedThemeLabels = tourThemes.length > 0 
+      ? tourThemes.map(val => tourThemesOptions.find(t => t.value === val)?.label || val).join(', ') 
+      : 'Not Categorized'
+
     const detailedDescription = `
 📝 Overview:
 ${overview}
+
+🏷️ Tour Themes / Categories: ${selectedThemeLabels}
 
 📍 Places to Visit:
 ${formattedPlaces}
@@ -269,6 +295,7 @@ ${formattedFaqs}
     const metadata = {
       duration: finalDuration, durationRaw: { d: durationDays, n: durationNights, h: durationHours },
       startLocation, destinationsArray: destinations, pickupTimes: cleanPickupTimes,
+      tourTheme: tourThemes, // 🌟 Save array to metadata (kept 'tourTheme' key for compatibility)
       overview, placesToVisit: placesToVisit.filter(p => p.trim() !== ''),
       itineraryDays: itineraryDays.filter(d => d.title.trim() !== ''),
       personPrices, cabPrices, cabExtraCharges,
@@ -287,14 +314,12 @@ ${formattedFaqs}
     }
   }
 
-  // 🌟 BACKGROUND & WINDOW CLOSE AUTO-SAVE LOGIC
   useEffect(() => {
     if (!title.trim() || !vendorId || submitting) return;
 
     const timeoutId = setTimeout(async () => {
       const dbPayload = generatePayload('draft');
       if (currentEditId) {
-        // 🌟 Admin vendor id change handle here
         await supabase.from('listings').update({ ...dbPayload, vendor_id: vendorId }).eq('id', currentEditId);
         setLastSaved(new Date());
       } else {
@@ -330,7 +355,6 @@ ${formattedFaqs}
     };
   }); 
 
-  // HELPER FUNCTIONS 
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
@@ -397,12 +421,17 @@ ${formattedFaqs}
     else { alert("Deleted successfully!"); router.push(userRole === 'admin' ? "/admin" : "/vendor") }
   }
 
-  // 🌟 MAIN SUBMIT BUTTON HANDLER
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!startLocation || destinations.length === 0) {
       setMessage({ type: 'error', text: 'Please select both Origin and at least one Destination!' })
+      return
+    }
+
+    // 🌟 Validation for Categories
+    if (tourThemes.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one Tour Theme/Category!' })
       return
     }
 
@@ -418,7 +447,6 @@ ${formattedFaqs}
     let error;
 
     if (currentEditId) {
-      // 🌟 Include vendor_id so Admin reassignment applies
       const res = await supabase.from('listings').update({ ...dbPayload, vendor_id: vendorId }).eq('id', currentEditId)
       error = res.error
     } else {
@@ -474,7 +502,6 @@ ${formattedFaqs}
 
           <form onSubmit={handleSubmit} className="space-y-10">
 
-            {/* 🌟 UPGRADED ADMIN CONTROL: Vendor Assignment */}
             {userRole === 'admin' && (
               <div className="bg-amber-50 p-6 rounded-xl border border-amber-200 shadow-sm">
                 <label className="block text-sm font-black text-amber-900 mb-2 flex items-center gap-2">
@@ -494,7 +521,6 @@ ${formattedFaqs}
                     >
                       <option value="">-- Select Vendor --</option>
                       {vendorsList.map((v) => {
-                        // 🌟 Fallback check for different column names
                         const displayTitle = v.business_name || v.name || v.full_name || v.email || 'Unnamed Vendor'
                         return (
                           <option key={v.id} value={v.id}>
@@ -509,7 +535,6 @@ ${formattedFaqs}
               </div>
             )}
 
-            {/* Section 1: Basic Info */}
             <div>
               <h2 className="text-xl font-bold text-gray-800 border-b pb-2 mb-6">1. Basic Info & SEO Metadata</h2>
               
@@ -527,12 +552,33 @@ ${formattedFaqs}
                 </div>
               </div>
 
+              {/* 🌟 MODIFIED: MULTIPLE CATEGORY SELECTOR (BUTTONS/PILLS) */}
+              <div className="mb-6 p-5 bg-indigo-50 border border-indigo-100 rounded-xl">
+                <label className="block text-sm font-bold text-indigo-900 mb-2">Tour Categorization (Themes)</label>
+                <div className="flex flex-wrap gap-2">
+                  {tourThemesOptions.map(theme => (
+                    <button
+                      key={theme.value}
+                      type="button"
+                      onClick={() => toggleTheme(theme.value)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                        tourThemes.includes(theme.value) 
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' 
+                        : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                      }`}
+                    >
+                      {theme.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-indigo-700 mt-3 font-medium">Select one or more themes to help users filter packages (e.g., Honeymoon, Family).</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <LocationSelector label="Start From (Origin)" selected={startLocation} onChange={setStartLocation} multiple={false} placeholder="Select Origin location..."/>
                 <LocationSelector label="Destinations Covered" selected={destinations} onChange={setDestinations} multiple={true} placeholder="Select one or more destinations..."/>
               </div>
 
-              {/* Duration & Pickup Times Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Tour Duration</label>
@@ -601,7 +647,6 @@ ${formattedFaqs}
               setMetaKeywords={setMetaKeywords}
             />
 
-            {/* Best Time to Visit Block */}
             <div>
               <h2 className="text-xl font-bold text-gray-800 border-b pb-2 mb-6">2. Best Time to Visit</h2>
               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
@@ -626,7 +671,6 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* Section 3: Pricing & Overview */}
             <div>
               <h2 className="text-xl font-bold text-gray-800 border-b pb-2 mb-6">3. Description & Pricing</h2>
               <div className="mb-8">
@@ -667,7 +711,6 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* Section 4: Places to Visit */}
             <div>
               <div className="flex justify-between items-center border-b pb-2 mb-6">
                 <h2 className="text-xl font-bold text-gray-800">4. Places to Visit</h2>
@@ -685,7 +728,6 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* Section 5: Dynamic Itinerary */}
             <div>
               <div className="flex justify-between items-center border-b pb-2 mb-6">
                 <h2 className="text-xl font-bold text-gray-800">5. Day-wise Itinerary</h2>
@@ -717,7 +759,6 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* Inclusions & Exclusions */}
             <div>
               <h2 className="text-xl font-bold text-gray-800 border-b pb-2 mb-6">6. Inclusions & Exclusions</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -755,7 +796,6 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* FAQs */}
             <div>
               <div className="border-b pb-2 mb-6">
                 <h2 className="text-xl font-bold text-gray-800">8. FAQs</h2>
@@ -782,7 +822,6 @@ ${formattedFaqs}
               <button type="button" onClick={addFaq} className="mt-2 text-sm bg-blue-100 text-blue-700 font-bold px-4 py-2 rounded-full hover:bg-blue-200">+ Add FAQ</button>
             </div>
 
-            {/* 🌟 ACTION BUTTONS & AUTO-SAVE INDICATOR */}
             <div className="pt-6 border-t mt-8">
               
               <div className="flex justify-between items-center mb-4">

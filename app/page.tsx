@@ -34,6 +34,20 @@ const homeFaqs = [
   { q: "What if I need help during my trip?", a: "We provide 24/7 expert customer support. In case of any emergencies or queries during your travel, our dedicated team is always just a call away to assist you." }
 ];
 
+// 🌟 PREDEFINED INDIAN STATES FOR DESTINATION SECTION
+const INDIAN_STATES = [
+  { name: 'Maharashtra', desc: 'Forts, caves, Pilgrimage Temple, Hill Station & coastal Konkan', img: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Kerala', desc: 'Backwaters, tea gardens, hill station & beaches', img: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Goa', desc: 'Beaches, forts, cruises & nightlife', img: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Karnataka', desc: 'Heritage, temples, hill stations, Hampi ruins', img: 'https://images.unsplash.com/photo-1620766165457-a80fe560c888?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Himachal Pradesh', desc: 'Hill stations, temples, adventure, Snow valleys', img: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Kashmir', desc: 'Valleys, lakes & spiritual escapes, Dal Lake', img: 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Gujarat', desc: 'Temples, desert & heritage', img: 'https://images.unsplash.com/photo-1629851174676-e17f369bdcfd?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Rajasthan', desc: 'Forts, palaces & desert adventures', img: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Uttarakhand', desc: 'Yoga, spirituality, trekking & Himalayas', img: 'https://images.unsplash.com/photo-1610715936287-6c2ab2083200?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Sikkim', desc: 'Glaciers, alpine meadows & Buddhist shrines', img: 'https://images.unsplash.com/photo-1622308644420-b003a2789146?q=80&w=800&auto=format&fit=crop' }
+];
+
 export default async function Home() {
   const { data: listings, error } = await supabase
     .from('listings')
@@ -72,6 +86,20 @@ export default async function Home() {
   const hotels = listings?.filter((l) => l.category === 'hotel') || []
   const cabs = listings?.filter((l) => l.category === 'cab') || []
   const blogs = listings?.filter((l) => l.category === 'blog') || []
+
+  // 🌟 DYNAMIC STATE CALCULATION FOR NEW SECTION
+  const activeStates = INDIAN_STATES.map(state => {
+    const stateListings = listings?.filter(l => l.location?.toLowerCase().includes(state.name.toLowerCase())) || [];
+    const tourCount = stateListings.filter(l => l.category === 'tour').length;
+    const placeCount = stateListings.filter(l => l.category === 'destination').length;
+
+    return {
+      ...state,
+      tourCount,
+      placeCount,
+      total: tourCount + placeCount
+    };
+  }).filter(state => state.total > 0); // 🔴 Yaha filter laga diya hai. Sirf > 0 wale States hi dikhenge!
 
   const sections = [
     { title: "Top Tour Packages", items: tours, viewAllLink: "/tours", icon: "🗺️", badge: "Most Popular" },
@@ -132,7 +160,6 @@ export default async function Home() {
       </section>
 
       {/* --- 💎 FLOATING TRUST SECTION --- */}
-      {/* Humne isko Hero section ke upar overlap kiya hai (-mt-24) taaki design connected lage */}
       <section className="max-w-6xl mx-auto px-4 md:px-8 -mt-24 relative z-30 mb-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-white/50 flex flex-col items-start gap-4 transform transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_50px_-15px_rgba(37,99,235,0.15)] group cursor-default">
@@ -160,6 +187,61 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* --- 🌟 NEW: EXPLORE BY DESTINATION (STATE) SECTION --- */}
+      {activeStates.length > 0 && (
+        <section className="max-w-6xl mx-auto px-4 md:px-8 mb-20 pt-4">
+          <div className="mb-10">
+            <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
+              Explore Packages by <span className="text-orange-600">Destination</span>
+            </h2>
+            <p className="text-slate-500 mt-3 text-lg font-medium">
+              Pick a state and jump straight to its live, bookable packages and places.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {activeStates.map((state, idx) => (
+              <Link 
+                href={`/search?destination=${state.name}`} 
+                key={idx} 
+                className="group relative h-64 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+              >
+                {/* Background Image */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={state.img} 
+                  alt={state.name} 
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
+                />
+                
+                {/* Dark Gradient Overlay for Text Readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
+                
+                {/* Content Container */}
+                <div className="absolute bottom-0 left-0 p-6 w-full">
+                  <h3 className="text-2xl font-bold text-white mb-1 shadow-sm">{state.name}</h3>
+                  <p className="text-slate-200 text-xs line-clamp-2 mb-4 font-medium leading-relaxed">{state.desc}</p>
+                  
+                  {/* Tour and Place Count Badges */}
+                  <div className="flex flex-wrap gap-2">
+                    {state.tourCount > 0 && (
+                      <span className="bg-white/20 backdrop-blur-md border border-white/20 text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 rounded-full">
+                        {state.tourCount} {state.tourCount === 1 ? 'Tour' : 'Tours'}
+                      </span>
+                    )}
+                    {state.placeCount > 0 && (
+                      <span className="bg-white/20 backdrop-blur-md border border-white/20 text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 rounded-full">
+                        {state.placeCount} {state.placeCount === 1 ? 'Place' : 'Places'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* --- 💎 PREMIUM LISTINGS CONTAINER --- */}
       <div className="max-w-6xl mx-auto px-4 md:px-8 pb-10">

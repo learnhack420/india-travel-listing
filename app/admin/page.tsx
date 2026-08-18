@@ -12,9 +12,12 @@ export default function AdminDashboard() {
   const [listings, setListings] = useState<any[]>([])
   const [vendors, setVendors] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([]) 
+  // 🌟 NEW STATE: Categories State
+  const [categories, setCategories] = useState<any[]>([])
+
   const [isLoading, setIsLoading] = useState(true)
 
-  // 🌟 NEW STATE: To store all profiles mapping for listing's vendor info
+  // To store all profiles mapping for listing's vendor info
   const [allProfiles, setAllProfiles] = useState<any[]>([])
 
   // Edit Vendor Modal States
@@ -25,10 +28,16 @@ export default function AdminDashboard() {
   const [editCompany, setEditCompany] = useState('')
   const [editAddress, setEditAddress] = useState('')
 
-  // 🌟 Edit Booking Modal States
+  // Edit Booking Modal States
   const [editingBooking, setEditingBooking] = useState<any>(null)
   const [editCustomerName, setEditCustomerName] = useState('')
   const [editCustomerMobile, setEditCustomerMobile] = useState('')
+
+  // 🌟 NEW: Category Modal States
+  const [editingCategory, setEditingCategory] = useState<any>(null)
+  const [catLabel, setCatLabel] = useState('')
+  const [catValue, setCatValue] = useState('')
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
 
   const router = useRouter()
 
@@ -59,7 +68,8 @@ export default function AdminDashboard() {
         fetchVendors(),
         fetchListings(),
         fetchBookings(),
-        fetchAllProfiles() // 🌟 Fetching all profiles to map vendor names safely
+        fetchAllProfiles(), // Fetching all profiles to map vendor names safely
+        fetchCategories() // 🌟 Fetch categories on load
       ])
     } catch (error) {
       console.error("Admin check failed:", error)
@@ -68,10 +78,62 @@ export default function AdminDashboard() {
     }
   }
 
-  // 🌟 NEW FUNCTION: Fetch all profiles to map vendor names in listings
   async function fetchAllProfiles() {
     const { data } = await supabase.from('profiles').select('id, full_name, company_name, email')
     if (data) setAllProfiles(data)
+  }
+
+  // ============================
+  // 🌟 CATEGORIES FUNCTIONS
+  // ============================
+  
+  async function fetchCategories() {
+    const { data } = await supabase.from('tour_categories').select('*').order('created_at', { ascending: true })
+    if (data) setCategories(data)
+  }
+
+  async function handleSaveCategory(e: React.FormEvent) {
+    e.preventDefault()
+    if (!catLabel || !catValue) return
+
+    // Auto format value/slug if user didn't write it properly
+    const formattedValue = catValue.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+
+    if (editingCategory) {
+      // UPDATE
+      const { error } = await supabase.from('tour_categories').update({ label: catLabel, value: formattedValue }).eq('id', editingCategory.id)
+      if (error) alert("Error updating category: " + error.message)
+    } else {
+      // INSERT
+      const { error } = await supabase.from('tour_categories').insert([{ label: catLabel, value: formattedValue }])
+      if (error) alert("Error adding category: " + error.message)
+    }
+
+    setShowCategoryModal(false)
+    setEditingCategory(null)
+    setCatLabel('')
+    setCatValue('')
+    fetchCategories()
+  }
+
+  async function deleteCategory(id: string) {
+    if (!window.confirm("WARNING: Kya aap is category ko delete karna chahte hain?")) return
+    const { error } = await supabase.from('tour_categories').delete().eq('id', id)
+    if (error) alert("Error deleting category: " + error.message)
+    else fetchCategories()
+  }
+
+  const openCategoryModal = (cat: any = null) => {
+    if (cat) {
+      setEditingCategory(cat)
+      setCatLabel(cat.label)
+      setCatValue(cat.value)
+    } else {
+      setEditingCategory(null)
+      setCatLabel('')
+      setCatValue('')
+    }
+    setShowCategoryModal(true)
   }
 
   // ============================
@@ -265,13 +327,12 @@ export default function AdminDashboard() {
     }
   }
 
-  // 🌟 MODIFIED: This is now a SOFT delete
   async function deleteListing(id: string) {
     if (!window.confirm("Kya aap is listing ko hide karke Trash mein dalna chahte hain? (Aap isse baad mein restore kar sakte hain)")) return
 
     const { error } = await supabase
       .from('listings')
-      .update({ is_deleted: true }) // Changed from .delete() to .update()
+      .update({ is_deleted: true }) 
       .eq('id', id)
 
     if (error) {
@@ -281,7 +342,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // 🌟 NEW FUNCTION: Restore listing from trash
   async function restoreListing(id: string) {
     if (!window.confirm("Kya aap is listing ko wapas Restore karna chahte hain?")) return
 
@@ -322,7 +382,6 @@ export default function AdminDashboard() {
     router.push('/login')
   }
 
-  // 🌟 MODIFIED: Added 'Trash' category
   const listingCategories = [
     { id: 'all', label: 'All Listings' },
     { id: 'destination', label: 'Tourist Places' },
@@ -343,7 +402,6 @@ export default function AdminDashboard() {
   }
 
   const displayedListings = listings.filter(listing => {
-    // 🌟 Filter logic to separate Trash and Active listings
     if (activeListingCategory === 'trash') {
       if (!listing.is_deleted) return false;
     } else {
@@ -382,15 +440,20 @@ export default function AdminDashboard() {
         </div>
 
         {/* Primary Tab Buttons */}
-        <div className="flex space-x-4 mb-8">
-          <button onClick={() => setActiveTab('bookings')} className={`px-6 py-3 font-bold rounded-lg transition-colors ${activeTab === 'bookings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+        <div className="flex space-x-4 mb-8 overflow-x-auto pb-2">
+          <button onClick={() => setActiveTab('bookings')} className={`px-6 py-3 font-bold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'bookings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
             📋 Customer Bookings / Leads
           </button>
-          <button onClick={() => setActiveTab('vendors')} className={`px-6 py-3 font-bold rounded-lg transition-colors ${activeTab === 'vendors' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+          <button onClick={() => setActiveTab('vendors')} className={`px-6 py-3 font-bold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'vendors' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
             👥 Manage Partners
           </button>
-          <button onClick={() => setActiveTab('listings')} className={`px-6 py-3 font-bold rounded-lg transition-colors ${activeTab === 'listings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+          <button onClick={() => setActiveTab('listings')} className={`px-6 py-3 font-bold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'listings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
             📑 Manage Listings
+          </button>
+          
+          {/* 🌟 NEW TAB FOR CATEGORIES */}
+          <button onClick={() => setActiveTab('categories')} className={`px-6 py-3 font-bold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'categories' ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+            🏷️ Tour Categories
           </button>
         </div>
         
@@ -616,7 +679,6 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
                           
-                          {/* 🌟 MODIFIED: If listing is deleted, show RESTORE, otherwise show view/edit/delete */}
                           {listing.is_deleted ? (
                             <button onClick={() => restoreListing(listing.id)} className="text-green-600 hover:text-green-900 font-bold bg-green-50 px-3 py-1 rounded-md ml-1 inline-block border border-green-100">♻️ Restore</button>
                           ) : (
@@ -649,6 +711,56 @@ export default function AdminDashboard() {
                   <div className="p-12 flex flex-col items-center justify-center">
                     <span className="text-4xl mb-3">🔍</span>
                     <p className="text-gray-500 font-bold text-lg">Koi listing nahi mili!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 🌟 NEW TAB 4: CATEGORIES MANAGEMENT */}
+          {activeTab === 'categories' && (
+            <div className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">Manage Tour Categories</h2>
+                  <p className="text-sm text-gray-500">Add or edit themes like Honeymoon, Family, etc. which will appear in the Tour Add form.</p>
+                </div>
+                <button onClick={() => openCategoryModal()} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 font-bold rounded-lg shadow-sm w-full md:w-auto">
+                  + Add New Category
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 border rounded-lg">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Category Label (Display)</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Slug / Value (Database)</th>
+                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {categories.map((cat) => (
+                      <tr key={cat.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-bold text-gray-900">{cat.label}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm text-purple-600 bg-purple-50 px-2 py-1 rounded-md font-mono border border-purple-100">
+                            {cat.value}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap space-x-2">
+                          <button onClick={() => openCategoryModal(cat)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</button>
+                          <button onClick={() => deleteCategory(cat.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md inline-block border border-red-100">🗑️ Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {categories.length === 0 && (
+                  <div className="p-8 text-center text-gray-500">
+                    No categories found. Click "Add New Category" to create one.
                   </div>
                 )}
               </div>
@@ -724,6 +836,52 @@ export default function AdminDashboard() {
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
                 <button type="button" onClick={() => setEditingVendor(null)} className="bg-gray-100 text-gray-700 font-bold px-5 py-2.5 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
                 <button type="submit" className="bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-blue-700 shadow-md transition-all active:scale-95">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 CATEGORY ADD/EDIT MODAL */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-extrabold text-gray-900">{editingCategory ? 'Edit Category' : 'Add New Category'}</h2>
+              <button onClick={() => setShowCategoryModal(false)} className="text-gray-400 hover:text-red-500 text-xl font-bold">✕</button>
+            </div>
+            
+            <form onSubmit={handleSaveCategory} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Category Label (With Emoji)</label>
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500 bg-gray-50" 
+                  value={catLabel} 
+                  onChange={(e) => {
+                    setCatLabel(e.target.value)
+                    if(!editingCategory) setCatValue(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''))
+                  }} 
+                  placeholder="e.g. 💑 Honeymoon Packages" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Category Value (Slug / ID)</label>
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500 bg-gray-50 font-mono text-purple-700" 
+                  value={catValue} 
+                  onChange={(e) => setCatValue(e.target.value)} 
+                  placeholder="e.g. honeymoon" 
+                />
+                <p className="text-xs text-gray-500 mt-1">This is saved in database. Do not use spaces.</p>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                <button type="button" onClick={() => setShowCategoryModal(false)} className="bg-gray-100 text-gray-700 font-bold px-5 py-2.5 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                <button type="submit" className="bg-purple-600 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-purple-700 shadow-md transition-all active:scale-95">Save Category</button>
               </div>
             </form>
           </div>
