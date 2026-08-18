@@ -9,8 +9,6 @@ import AIAutoFAQs from '../../components/AIAutoFAQs'
 import VendorInfoCard from '../../components/VendorInfoCard'
 import RelatedTourSections from '../../components/RelatedTourSections'
 
-
-
 export const revalidate = 60
 
 const formatLocation = (locStr?: string) => {
@@ -30,7 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const slug = resolvedParams.slug
 
   let { data: tour } = await supabase.from('listings').select('*').eq('slug', slug).single()
-  
+
   if (!tour) {
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug)
     if (isUUID) {
@@ -45,7 +43,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
   const currentUrl = `${siteUrl}/tour/${slug}`
   const thumbnail = tour.metadata?.thumbnail || tour.metadata?.gallery?.[0] || `${siteUrl}/default-tour.jpg`
-  
+
   const rawDescription = seo.metaDescription || tour.metadata?.shortDescription || `Book the ultimate ${tour.title}. Explore the best itinerary, places to visit, and inclusions. Get guaranteed best prices from verified local operators.`
   const cleanDescription = cleanTextForSEO(rawDescription).substring(0, 160)
 
@@ -101,7 +99,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
   if (!tour) return notFound() 
 
   const meta = tour.metadata || {}
-  
+
   const locationParts = tour.location ? tour.location.split('➔').map((s: string) => s.trim()) : []
   const rawOrigin = locationParts.length > 0 ? locationParts[0] : 'Not specified'
   const rawDestinations = locationParts.length > 1 ? locationParts[1] : tour.location
@@ -112,11 +110,11 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
   const thumbnail = meta.thumbnail || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=1200')
   const gallery = meta.gallery || []
-  
+
   const placesToVisitStr = meta.placesToVisit && meta.placesToVisit.length > 0 
     ? meta.placesToVisit.join(', ') 
     : destinationsCovered
-    
+
   const isLocalTour = rawOrigin.toLowerCase() === rawDestinations.toLowerCase()
 
   const formatTime12hr = (time24: string) => {
@@ -147,7 +145,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
   // 🌟 SEO UPGRADE 2: JSON-LD Structured Data Enhanced
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
-  
+
   // 1. Breadcrumb Schema
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -211,7 +209,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20 font-sans selection:bg-blue-200 selection:text-blue-900">
-      
+
       {/* --- INJECT GOOGLE SCHEMAS --- */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(tourSchema) }} />
@@ -222,7 +220,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={thumbnail} alt={`${tour.title} package from ${origin} to ${destinationsCovered}`} title={tour.title} className="w-full h-full object-cover opacity-70" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
-        
+
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-7xl mx-auto">
           {/* 🌟 SEO UPGRADE 3: UI Breadcrumbs */}
           <nav aria-label="breadcrumb" className="flex items-center text-xs md:text-sm text-gray-300 font-bold mb-6 overflow-x-auto whitespace-nowrap">
@@ -244,17 +242,50 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
         </div>
       </div>
 
+      {/* 🌟 QUICK LINKS NAVIGATION BAR (Sticky) */}
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-4 md:px-8">
+          <ul className="flex items-center gap-6 md:gap-10 py-4 text-sm font-bold text-gray-600 whitespace-nowrap">
+            <li>
+              <a href="#overview" className="hover:text-blue-600 transition-colors flex items-center gap-2">
+                <span>📋</span> Overview
+              </a>
+            </li>
+            {(itineraryDays.length > 0 || meta.itinerary) && (
+              <li>
+                <a href="#itinerary" className="hover:text-blue-600 transition-colors flex items-center gap-2">
+                  <span>🗺️</span> Itinerary
+                </a>
+              </li>
+            )}
+            {(meta.inclusions || meta.exclusions) && (
+              <li>
+                <a href="#inclusions" className="hover:text-blue-600 transition-colors flex items-center gap-2">
+                  <span>✅</span> Inclusions / Exclusions
+                </a>
+              </li>
+            )}
+            <li>
+              <a href="#pricing" className="hover:text-blue-600 transition-colors flex items-center gap-2">
+                <span>💰</span> Package Cost
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 md:px-8 mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
-        
+
         {/* Left Content Column */}
         <div className="lg:col-span-2 space-y-10">
-          
-          <section className="bg-white p-0 rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+
+          {/* Added ID for Quick Links */}
+          <section id="overview" className="bg-white p-0 rounded-3xl shadow-sm border border-gray-200 overflow-hidden scroll-mt-20">
             <div className="bg-gradient-to-r from-blue-700 to-indigo-800 p-5 md:p-8">
               <h2 className="text-2xl md:text-3xl font-black text-white">📋 Information of {tour.title} </h2>
               <p className="text-blue-100 text-sm md:text-base mt-2 font-medium">Key details about {tour.title}</p>
             </div>
-            
+
             <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex items-start gap-4">
                 <div className="bg-blue-50 p-4 rounded-2xl text-blue-600 text-2xl">🛫</div>
@@ -304,7 +335,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                       Best Time to Visit {targetCity ? `in ${targetCity}` : ''}
                     </h3>
                   </div>
-                  
+
                   {bestTimeToVisitText && (
                     <p className="text-amber-800 text-base font-medium mb-4 leading-relaxed">
                       {bestTimeToVisitText}
@@ -343,7 +374,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
-          {/* 🌟 OVERVIEW FIX: Added Replace hacks for escaped HTML from visual editor */}
+          {/* 🌟 OVERVIEW SECTION */}
           {meta.overview && (
             <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
               <h2 className="text-3xl font-black text-gray-900 mb-6 border-b border-gray-100 pb-4">Overview of {tour.title}</h2>
@@ -359,9 +390,9 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
-          {/* 🌟 ITINERARY FIX: Switched to prose block and added Replace hacks for escaped HTML */}
+          {/* Added ID for Quick Links */}
           {(itineraryDays.length > 0 || meta.itinerary) && (
-            <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+            <section id="itinerary" className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200 scroll-mt-20">
               <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
                 Itinerary of {tour.title}
               </h2>
@@ -397,8 +428,9 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
+          {/* Added ID for Quick Links */}
           {(meta.inclusions || meta.exclusions) && (
-            <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+            <section id="inclusions" className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200 scroll-mt-20">
               <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
                 What is Including and Not including in {tour.title}
               </h2>
@@ -427,7 +459,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
               {isLocalTour ? "Local Sightseeing Map" : "How to Reach & Route Map"}
             </h2>
-            
+
             <div className="flex flex-col gap-8">
               <div className="space-y-6">
                 {isLocalTour ? (
@@ -435,7 +467,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                     <p className="text-base text-gray-600 font-medium mb-2">
                       Explore the best local attractions in <strong className="text-gray-900">{destinationsCovered}</strong>:
                     </p>
-                    
+
                     <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex gap-5 items-start">
                       <span className="text-3xl">🚖</span>
                       <div>
@@ -476,7 +508,8 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
         {/* Right Sidebar */}
         <aside className="lg:col-span-1">
-          <div className="sticky top-6">
+          {/* Added ID for Quick Links */}
+          <div id="pricing" className="sticky top-20 scroll-mt-24">
             <TourBookingSidebar tour={tour} meta={meta} destinations={destinationsCovered} />
           </div>
         </aside>
@@ -489,7 +522,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
         vendorId={tour.vendor_id} 
         location={tour.location} 
         targetCity={targetCity} 
-        originCity={origin} // 👈 Yeh line zaroor honi chahiye
+        originCity={origin} 
       />
     </main>
   )

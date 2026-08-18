@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../utils/supabase'
 
 export default function TourBookingSidebar({ tour, meta, destinations }: { tour: any, meta: any, destinations: string }) {
-  // Modal state ab do tarah ki modals handle karega: 'book' ya 'inquiry'
   const [activeModal, setActiveModal] = useState<'book' | 'inquiry' | null>(null)
+  
+  // Booking ko 3 steps mein todne ke liye state
+  const [bookingStep, setBookingStep] = useState<1 | 2 | 3>(1)
+  
   const [submitting, setSubmitting] = useState(false)
   
-  // Date validation (Same day booking not allowed)
   const [minDate, setMinDate] = useState('')
   useEffect(() => {
     const tomorrow = new Date()
@@ -15,9 +17,6 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
     setMinDate(tomorrow.toISOString().split('T')[0])
   }, [])
 
-  // ==========================================
-  // HELPER: Calculate Original Price (+15%)
-  // ==========================================
   const getOriginalPrice = (price: string | number) => {
     return Math.round(Number(price) * 1.15)
   }
@@ -31,21 +30,19 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
     date: '',
     time: '',
     pickup: '',
-    selectedPackage: ''
+    selectedPackage: '',
+    transactionId: '' // Naya field UTR/Transaction ID ke liye
   })
   
   const [consent1, setConsent1] = useState(false)
   const [consent2, setConsent2] = useState(false)
 
-  // Places to Visit array ko string mein convert karna
   const placesToVisitStr = meta.placesToVisit && meta.placesToVisit.length > 0 
     ? meta.placesToVisit.join(', ') 
     : destinations
 
-  // Dynamic Pricing Options List (With Calculation and Extra Time Charges)
   const packageOptions: string[] = []
   
-  // Person Prices
   if (meta.personPrices) {
     if (meta.personPrices.min2) packageOptions.push(`Min 2 Pax: ₹${meta.personPrices.min2}/pax (Total: ₹${meta.personPrices.min2 * 2})`)
     if (meta.personPrices.min4) packageOptions.push(`Min 4 Pax: ₹${meta.personPrices.min4}/pax (Total: ₹${meta.personPrices.min4 * 4})`)
@@ -53,39 +50,64 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
     if (meta.personPrices.min8) packageOptions.push(`Min 8+ Pax: ₹${meta.personPrices.min8}/pax (Total: ₹${meta.personPrices.min8 * 8})`)
   }
 
-  // Cab Prices with Extra Time Logic
   if (meta.cabPrices) {
     if (meta.cabPrices.hatchback) {
       const ext = meta.cabExtraCharges?.hatchback ? ` (+₹${meta.cabExtraCharges.hatchback}/hr)` : '';
-      packageOptions.push(`Hatchback Cab: ₹${meta.cabPrices.hatchback}${ext}`)
+      packageOptions.push(`Hatchback (4+1D): ₹${meta.cabPrices.hatchback}${ext}`)
     }
     if (meta.cabPrices.sedan) {
       const ext = meta.cabExtraCharges?.sedan ? ` (+₹${meta.cabExtraCharges.sedan}/hr)` : '';
-      packageOptions.push(`Sedan Cab: ₹${meta.cabPrices.sedan}${ext}`)
+      packageOptions.push(`Sedan (4+1D): ₹${meta.cabPrices.sedan}${ext}`)
     }
     if (meta.cabPrices.suv) {
       const ext = meta.cabExtraCharges?.suv ? ` (+₹${meta.cabExtraCharges.suv}/hr)` : '';
-      packageOptions.push(`SUV/Ertiga Cab: ₹${meta.cabPrices.suv}${ext}`)
+      packageOptions.push(`SUV/Ertiga (6+1D): ₹${meta.cabPrices.suv}${ext}`)
     }
     if (meta.cabPrices.innova) {
       const ext = meta.cabExtraCharges?.innova ? ` (+₹${meta.cabExtraCharges.innova}/hr)` : '';
-      packageOptions.push(`Innova/Crysta Cab: ₹${meta.cabPrices.innova}${ext}`)
+      packageOptions.push(`Innova/Crysta (6+1D): ₹${meta.cabPrices.innova}${ext}`)
     }
     if (meta.cabPrices.tempo) {
       const ext = meta.cabExtraCharges?.tempo ? ` (+₹${meta.cabExtraCharges.tempo}/hr)` : '';
-      packageOptions.push(`Tempo Traveller: ₹${meta.cabPrices.tempo}${ext}`)
+      packageOptions.push(`Tempo Traveller (12+1D): ₹${meta.cabPrices.tempo}${ext}`)
     }
   }
 
-  const handleBookNow = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // YAHAN APNI UPI ID AUR NAAM DAALEIN
+  const advanceAmount = "1.00" // Rs 1 advance payment
+  const upiId = "rajcabs09@okicici" // Example: 9892455466@ybl
+  const payeeName = "E-Mumbai Tourism"
+  
+  // Standard UPI Link format
+  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${advanceAmount}&cu=INR`
+  // Free API se QR Code Generate karna
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiLink)}`
+
+  const handleProceedToStep2 = () => {
+    if (!formData.selectedPackage) {
+      alert("Please select a Package / Vehicle to continue.")
+      return
+    }
     if (!consent1 || !consent2) {
       alert("Please accept both terms to proceed with booking.")
       return
     }
+    setBookingStep(2)
+  }
+
+  const handleProceedToStep3 = (e: React.FormEvent) => {
+    e.preventDefault()
+    setBookingStep(3)
+  }
+
+  const handleFinalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.transactionId) {
+      alert("Please enter the UTR / Transaction ID after making the payment.")
+      return
+    }
     setSubmitting(true)
 
-    // 1. Backend (Supabase) mein save karna (Admin Leads Dashboard Format me)
     const bookingDataPayload = {
       customer_name: formData.name,
       customer_mobile: formData.phone,
@@ -100,24 +122,24 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
         selectedPackage: formData.selectedPackage,
         placesToVisit: placesToVisitStr,
         inclusions: meta.inclusions || 'Not specified',
-        exclusions: meta.exclusions || 'Not specified'
+        exclusions: meta.exclusions || 'Not specified',
+        paymentStatus: 'Advance Paid',
+        advanceAmount: `₹${advanceAmount}`,
+        transactionId: formData.transactionId // Transaction ID saved
       }
     }
 
-    // Insert into database
     const { error } = await supabase.from('bookings').insert([bookingDataPayload])
     if (error) console.error("Booking save error:", error)
 
-    // EMAIL TRIGGER API CALL
     fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'New Tour Booking Lead', data: bookingDataPayload })
+      body: JSON.stringify({ type: 'New Tour Booking Lead (Advance Paid)', data: bookingDataPayload })
     }).catch(err => console.error("Email bhejte waqt error aaya:", err))
 
-    // 2. WhatsApp Message Format
-    const waNumber = '919867600452' // Helpline/vendor number
-    const text = `🚀 *New Booking Request*
+    const waNumber = '919892455466'
+    const text = `🚀 *New Booking Confirmed*
 -----------------------------
 *Tour Name:* ${tour.title}
 *Customer Name:* ${formData.name}
@@ -126,24 +148,21 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
 *Pickup Loc:* ${formData.pickup}
 *Package Selected:* ${formData.selectedPackage}
 
+💳 *Payment Details:*
+*Advance Paid:* ₹${advanceAmount}
+*Transaction ID (UTR):* ${formData.transactionId}
+
+*(Note for Customer: Please attach the payment screenshot here in this chat for verification)*
+
 📍 *Places to Visit:* 
-${placesToVisitStr || 'As per itinerary'}
-
-✅ *Included:* 
-${meta.inclusions || 'N/A'}
-
-❌ *Excluded:* 
-${meta.exclusions || 'N/A'}
-
-✔️ Customer agreed to ₹1000 advance payment.
-✔️ Customer agreed to cancellation policy.`
+${placesToVisitStr || 'As per itinerary'}`
 
     const encodedText = encodeURIComponent(text)
     
     setSubmitting(false)
     setActiveModal(null)
+    setBookingStep(1)
     
-    // 3. Redirect to WhatsApp
     window.open(`https://wa.me/${waNumber}?text=${encodedText}`, '_blank')
   }
 
@@ -157,20 +176,23 @@ ${meta.exclusions || 'N/A'}
   })
 
   const handleInquiryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setInquiryData({ ...inquiryData, [e.target.name]: e.target.value })
+    if (e.target.name === 'mobile') {
+      setInquiryData({ ...inquiryData, [e.target.name]: e.target.value.replace(/\D/g, '') })
+    } else {
+      setInquiryData({ ...inquiryData, [e.target.name]: e.target.value })
+    }
   }
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
 
-    const waNumber = '919867600452'
+    const waNumber = '919892455466'
 
-    // Save Inquiry to DB (Admin Leads)
     const inquiryPayload = {
       customer_name: inquiryData.name,
       customer_mobile: inquiryData.mobile,
-      booking_type: 'tour_inquiry', // Separate type for admin dashboard
+      booking_type: 'tour_inquiry',
       listing_title: tour.title,
       booking_details: {
         requestType: 'Inquiry',
@@ -182,14 +204,12 @@ ${meta.exclusions || 'N/A'}
     const { error } = await supabase.from('bookings').insert([inquiryPayload])
     if (error) console.error("Inquiry save error:", error)
 
-    // EMAIL TRIGGER API CALL
     fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'New Tour Inquiry Alert', data: inquiryPayload })
     }).catch(err => console.error("Email bhejte waqt error aaya:", err))
 
-    // Redirect to WhatsApp
     const message = `*New Tour Inquiry* 💬
     
 *Customer Details:*
@@ -216,11 +236,9 @@ Kindly provide more details.`.trim()
       <div className="bg-white p-6 rounded-2xl shadow-xl border border-blue-100 sticky top-24">
         
         {/* Available Packages Pricing Section */}
-        <div className="mb-8">
-          {/* 🌟 DYNAMIC HEADING: Package Cost */}
+        <div className="mb-2">
           <h3 className="text-gray-900 font-extrabold text-xl border-b pb-2 mb-4">{tour.title || 'Tour'} Package Cost</h3>
           
-          {/* TOUR DURATION DISPLAY */}
           {meta.duration && (
             <div className="mb-5 bg-blue-50/80 border border-blue-100 p-3 rounded-xl flex items-center gap-3">
               <span className="text-2xl">⏱️</span>
@@ -242,9 +260,9 @@ Kindly provide more details.`.trim()
                   <div className="text-right">
                     <div className="flex justify-end items-center gap-1.5 mb-1">
                       <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min2)}</span>
-                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                     </div>
-                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min2} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="font-black text-green-600 text-lg">₹{meta.personPrices.min2} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min2 * 2}</span>
                   </div>
                 </div>
@@ -256,9 +274,9 @@ Kindly provide more details.`.trim()
                   <div className="text-right">
                     <div className="flex justify-end items-center gap-1.5 mb-1">
                       <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min4)}</span>
-                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                     </div>
-                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min4} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="font-black text-green-600 text-lg">₹{meta.personPrices.min4} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min4 * 4}</span>
                   </div>
                 </div>
@@ -270,9 +288,9 @@ Kindly provide more details.`.trim()
                   <div className="text-right">
                     <div className="flex justify-end items-center gap-1.5 mb-1">
                       <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min6)}</span>
-                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                     </div>
-                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min6} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="font-black text-green-600 text-lg">₹{meta.personPrices.min6} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min6 * 6}</span>
                   </div>
                 </div>
@@ -284,9 +302,9 @@ Kindly provide more details.`.trim()
                   <div className="text-right">
                     <div className="flex justify-end items-center gap-1.5 mb-1">
                       <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min8)}</span>
-                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                     </div>
-                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min8} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="font-black text-green-600 text-lg">₹{meta.personPrices.min8} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min8 * 8}</span>
                   </div>
                 </div>
@@ -300,15 +318,18 @@ Kindly provide more details.`.trim()
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cab Wise Pricing</h4>
               
               {meta.cabPrices.hatchback && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">Hatchback:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">Hatchback</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">4+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.hatchback)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.hatchback}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.hatchback}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.hatchback && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.hatchback}/hr</span>}
@@ -316,15 +337,18 @@ Kindly provide more details.`.trim()
               )}
               
               {meta.cabPrices.sedan && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">Sedan:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">Sedan</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">4+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.sedan)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.sedan}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.sedan}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.sedan && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.sedan}/hr</span>}
@@ -332,15 +356,18 @@ Kindly provide more details.`.trim()
               )}
               
               {meta.cabPrices.suv && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">SUV/Ertiga:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">SUV/Ertiga</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">6+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.suv)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.suv}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.suv}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.suv && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.suv}/hr</span>}
@@ -348,15 +375,18 @@ Kindly provide more details.`.trim()
               )}
               
               {meta.cabPrices.innova && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">Innova/Crysta:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">Innova/Crysta</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">6+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.innova)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.innova}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.innova}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.innova && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.innova}/hr</span>}
@@ -364,15 +394,18 @@ Kindly provide more details.`.trim()
               )}
               
               {meta.cabPrices.tempo && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">Tempo Traveller:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">Tempo Traveller</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">12+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.tempo)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.tempo}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.tempo}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.tempo && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.tempo}/hr</span>}
@@ -382,10 +415,33 @@ Kindly provide more details.`.trim()
           )}
         </div>
 
+        {/* QUICK LINK FOR INCLUSIONS & EXCLUSIONS */}
+        <div className="mt-3 mb-1 text-center">
+          <a href="#inclusions" className="text-[13px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-4 decoration-blue-200 hover:decoration-blue-600 transition-all">
+            See What's Included & Excluded ↓
+          </a>
+        </div>
+
+        {/* TRUST BADGES */}
+        <div className="mt-4 mb-6 grid grid-cols-3 gap-2 text-center border-t border-gray-100 pt-5">
+          <div className="flex flex-col items-center">
+            <span className="text-xl mb-1">🔒</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">Secure</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xl mb-1">✅</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">No Hidden<br/>Fees</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xl mb-1">🆓</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">Easy<br/>Cancel</span>
+          </div>
+        </div>
+
         {/* Action Buttons */}
-        <div className="space-y-3 mt-6">
+        <div className="space-y-3">
           <button 
-            onClick={() => setActiveModal('book')}
+            onClick={() => { setActiveModal('book'); setBookingStep(1); }}
             className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 transition-colors shadow-lg text-lg flex items-center justify-center gap-2"
           >
             🗓️ Book Now
@@ -398,6 +454,7 @@ Kindly provide more details.`.trim()
             💬 Send Inquiry
           </button>
         </div>
+
       </div>
 
       {/* ========================================== */}
@@ -409,80 +466,155 @@ Kindly provide more details.`.trim()
             
             {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
-              <h2 className="text-xl font-extrabold text-gray-900">Book: {tour.title}</h2>
-              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-800 font-bold text-xl">✕</button>
+              <div>
+                <h2 className="text-xl font-extrabold text-gray-900">Book: {tour.title}</h2>
+                <span className="text-xs font-bold text-blue-600 tracking-wider uppercase mt-1 block">
+                  Step {bookingStep} of 3
+                </span>
+              </div>
+              <button onClick={() => { setActiveModal(null); setBookingStep(1); }} className="text-gray-400 hover:text-gray-800 font-bold text-xl">✕</button>
             </div>
 
             <div className="p-6">
-              {/* Reference Info (Places, Inclusions, Exclusions) */}
-              <div className="bg-gray-50 p-5 rounded-xl text-sm space-y-4 border border-gray-200 mb-6">
-                <div>
-                  <span className="font-bold text-blue-900 block mb-1">📍 Places to Visit:</span> 
-                  <span className="text-gray-700">{placesToVisitStr || 'As per itinerary'}</span>
-                </div>
-                {meta.inclusions && (
-                  <div>
-                    <span className="font-bold text-green-700 block mb-1">✅ Included:</span> 
-                    <span className="text-gray-700 whitespace-pre-wrap">{meta.inclusions}</span>
+              
+              {/* --- STEP 1: Details & Package Selection --- */}
+              {bookingStep === 1 && (
+                <div className="space-y-6">
+                  <div className="bg-gray-50 p-5 rounded-xl text-sm space-y-4 border border-gray-200">
+                    <div>
+                      <span className="font-bold text-blue-900 block mb-1">📍 Places to Visit:</span> 
+                      <span className="text-gray-700">{placesToVisitStr || 'As per itinerary'}</span>
+                    </div>
+                    {meta.inclusions && (
+                      <div>
+                        <span className="font-bold text-green-700 block mb-1">✅ Included:</span> 
+                        <span className="text-gray-700 whitespace-pre-wrap">{meta.inclusions}</span>
+                      </div>
+                    )}
+                    {meta.exclusions && (
+                      <div>
+                        <span className="font-bold text-red-700 block mb-1">❌ Excluded:</span> 
+                        <span className="text-gray-700 whitespace-pre-wrap">{meta.exclusions}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {meta.exclusions && (
-                  <div>
-                    <span className="font-bold text-red-700 block mb-1">❌ Excluded:</span> 
-                    <span className="text-gray-700 whitespace-pre-wrap">{meta.exclusions}</span>
-                  </div>
-                )}
-              </div>
 
-              {/* Form Fields */}
-              <form onSubmit={handleBookNow} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Your Name</label>
-                    <input type="text" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Full Name" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Contact Number</label>
-                    <input type="tel" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="WhatsApp Number" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Date of Travel</label>
-                    <input type="date" required min={minDate} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Pickup Time</label>
-                    <input type="time" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.time} onChange={(e) => setFormData({...formData, time: e.target.value})} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Pickup Address (Hotel / Airport / Station)</label>
-                    <input type="text" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.pickup} onChange={(e) => setFormData({...formData, pickup: e.target.value})} placeholder="Exact pickup location" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Select Package / Vehicle</label>
-                    <select required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 bg-white" value={formData.selectedPackage} onChange={(e) => setFormData({...formData, selectedPackage: e.target.value})}>
+                    <label className="block text-sm font-bold text-gray-900 mb-2">Select Package / Vehicle <span className="text-red-500">*</span></label>
+                    <select required className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 outline-none font-bold text-blue-800 bg-blue-50/30" value={formData.selectedPackage} onChange={(e) => setFormData({...formData, selectedPackage: e.target.value})}>
                       <option value="">-- Choose from available options --</option>
                       {packageOptions.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
                     </select>
                   </div>
-                </div>
 
-                {/* Consent Checkboxes */}
-                <div className="space-y-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" required checked={consent1} onChange={(e) => setConsent1(e.target.checked)} className="mt-1 w-4 h-4 text-blue-600 rounded" />
-                    <span className="text-sm font-bold text-gray-800">Your booking will be confirmed only after an advance payment of ₹1000.</span>
-                  </label>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" required checked={consent2} onChange={(e) => setConsent2(e.target.checked)} className="mt-1 w-4 h-4 text-blue-600 rounded" />
-                    <span className="text-sm font-medium text-gray-700">I agree to the <a href="/cancellation-policy" target="_blank" className="text-blue-600 underline font-bold">Cancellation Policy</a>.</span>
-                  </label>
-                </div>
+                  <div className="space-y-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input type="checkbox" required checked={consent1} onChange={(e) => setConsent1(e.target.checked)} className="mt-1 w-4 h-4 text-blue-600 rounded" />
+                      <span className="text-sm font-bold text-gray-800">Your booking will be confirmed only after an advance payment of ₹{advanceAmount}.</span>
+                    </label>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input type="checkbox" required checked={consent2} onChange={(e) => setConsent2(e.target.checked)} className="mt-1 w-4 h-4 text-blue-600 rounded" />
+                      <span className="text-sm font-medium text-gray-700">I agree to the <a href="/cancellation-policy" target="_blank" className="text-blue-600 underline font-bold">Cancellation Policy</a>.</span>
+                    </label>
+                  </div>
 
-                {/* Submit Button */}
-                <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 disabled:bg-blue-300 transition-colors shadow-lg text-lg">
-                  {submitting ? 'Processing...' : 'Confirm & Proceed to WhatsApp ➔'}
-                </button>
-              </form>
+                  <button type="button" onClick={handleProceedToStep2} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-colors shadow-lg text-lg">
+                    Continue ➔
+                  </button>
+                </div>
+              )}
+
+              {/* --- STEP 2: Customer Details Form --- */}
+              {bookingStep === 2 && (
+                <form onSubmit={handleProceedToStep3} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <button type="button" onClick={() => setBookingStep(1)} className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-bold text-sm mb-2 bg-blue-50 px-3 py-1.5 rounded-lg w-fit transition-colors">
+                    ← Back to Package Info
+                  </button>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Your Name <span className="text-red-500">*</span></label>
+                      <input type="text" required className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Full Name" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Contact Number <span className="text-red-500">*</span></label>
+                      <input type="tel" required pattern="[0-9]{10}" maxLength={10} title="Please enter a valid 10-digit mobile number" className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '')})} placeholder="10-digit WhatsApp Number" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Date of Travel <span className="text-red-500">*</span></label>
+                      <input type="date" required min={minDate} className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Pickup Time <span className="text-red-500">*</span></label>
+                      <input type="time" required className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm" value={formData.time} onChange={(e) => setFormData({...formData, time: e.target.value})} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Pickup Address (Hotel / Airport / Station) <span className="text-red-500">*</span></label>
+                      <input type="text" required className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm" value={formData.pickup} onChange={(e) => setFormData({...formData, pickup: e.target.value})} placeholder="Exact pickup location" />
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl">
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Selected Package</p>
+                    <p className="text-sm font-black text-blue-900">{formData.selectedPackage}</p>
+                  </div>
+
+                  <button type="submit" className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-colors shadow-lg text-lg flex items-center justify-center gap-2">
+                    Proceed to Payment (₹{advanceAmount}) ➔
+                  </button>
+                </form>
+              )}
+
+              {/* --- STEP 3: Payment (UPI & QR) --- */}
+              {bookingStep === 3 && (
+                <form onSubmit={handleFinalSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <button type="button" onClick={() => setBookingStep(2)} className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-bold text-sm mb-2 bg-blue-50 px-3 py-1.5 rounded-lg w-fit transition-colors">
+                    ← Back to Details
+                  </button>
+
+                  <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-2xl text-center shadow-sm">
+                    <h3 className="text-lg font-black text-gray-900 mb-1">Advance Booking Amount</h3>
+                    <div className="text-4xl font-extrabold text-amber-600 mb-4">₹{advanceAmount}</div>
+                    <p className="text-sm font-medium text-gray-600 mb-6">
+                      Please scan the QR code below using any UPI app (GPay, PhonePe, Paytm) to confirm your booking.
+                    </p>
+                    
+                    {/* QR CODE DISPLAY */}
+                    <div className="bg-white p-4 inline-block rounded-2xl shadow-md border border-gray-200 mb-6">
+                      <img src={qrCodeUrl} alt="UPI QR Code" className="w-48 h-48 object-contain" />
+                    </div>
+
+                    {/* MOBILE DIRECT PAY LINK */}
+                    <div className="mb-6">
+                      <a href={upiLink} className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-6 rounded-xl shadow-md inline-flex items-center gap-2 transition-all">
+                        ⚡ Click here to Pay via UPI App
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* UTR Input Section */}
+                  <div className="bg-white border-2 border-blue-100 p-5 rounded-xl shadow-sm">
+                    <label className="block text-sm font-bold text-gray-800 mb-2">
+                      Enter 12-digit UTR / Transaction ID <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Payment karne ke baad apna UTR ya Transaction ID yahan dalein. WhatsApp open hone ke baad wahan screenshot attach karein.
+                    </p>
+                    <input 
+                      type="text" 
+                      required 
+                      className="w-full px-4 py-3 border-2 rounded-xl focus:border-blue-500 outline-none bg-gray-50 font-bold tracking-widest text-center uppercase" 
+                      value={formData.transactionId} 
+                      onChange={(e) => setFormData({...formData, transactionId: e.target.value})} 
+                      placeholder="e.g. 312345678901" 
+                    />
+                  </div>
+
+                  <button type="submit" disabled={submitting} className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 disabled:bg-green-400 transition-colors shadow-lg text-lg flex items-center justify-center gap-2">
+                    {submitting ? 'Processing...' : 'Confirm Booking & Send WhatsApp ➔'}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
@@ -509,7 +641,7 @@ Kindly provide more details.`.trim()
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mobile Number</label>
-                <input type="tel" name="mobile" required className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-slate-500" placeholder="+91 XXXXX XXXXX" onChange={handleInquiryChange} />
+                <input type="tel" name="mobile" required pattern="[0-9]{10}" maxLength={10} title="Please enter a valid 10-digit mobile number" className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-slate-500" placeholder="10-digit Mobile No." onChange={handleInquiryChange} />
               </div>
 
               <div>
