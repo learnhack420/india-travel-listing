@@ -51,7 +51,7 @@ export default function Header() {
               </Link>
             ) : (
               <Link href="/login" className="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm">
-                Login / Join
+                Become a Partner
               </Link>
             )}
           </div>
