@@ -238,7 +238,7 @@ export default function AdminDashboard() {
   }
 
   // ============================
-  // LISTINGS FUNCTIONS
+  // LISTINGS FUNCTIONS (SOFT DELETE ADDED)
   // ============================
   
   async function fetchListings() {
@@ -265,16 +265,33 @@ export default function AdminDashboard() {
     }
   }
 
+  // 🌟 MODIFIED: This is now a SOFT delete
   async function deleteListing(id: string) {
-    if (!window.confirm("WARNING: Kya aap sach mein is listing ko permanently delete karna chahte hain? Yeh wapas recover nahi hogi.")) return
+    if (!window.confirm("Kya aap is listing ko hide karke Trash mein dalna chahte hain? (Aap isse baad mein restore kar sakte hain)")) return
 
     const { error } = await supabase
       .from('listings')
-      .delete()
+      .update({ is_deleted: true }) // Changed from .delete() to .update()
       .eq('id', id)
 
     if (error) {
       alert("Error deleting listing: " + error.message)
+    } else {
+      fetchListings() 
+    }
+  }
+
+  // 🌟 NEW FUNCTION: Restore listing from trash
+  async function restoreListing(id: string) {
+    if (!window.confirm("Kya aap is listing ko wapas Restore karna chahte hain?")) return
+
+    const { error } = await supabase
+      .from('listings')
+      .update({ is_deleted: false })
+      .eq('id', id)
+
+    if (error) {
+      alert("Error restoring listing: " + error.message)
     } else {
       fetchListings() 
     }
@@ -305,22 +322,35 @@ export default function AdminDashboard() {
     router.push('/login')
   }
 
+  // 🌟 MODIFIED: Added 'Trash' category
   const listingCategories = [
     { id: 'all', label: 'All Listings' },
     { id: 'destination', label: 'Tourist Places' },
     { id: 'tour', label: 'Tour Packages' },
     { id: 'hotel', label: 'Hotels' },
     { id: 'cab', label: 'Cabs' },
-    { id: 'blog', label: 'Blogs' }
+    { id: 'blog', label: 'Blogs' },
+    { id: 'trash', label: '🗑️ Trash (Deleted)' }
   ]
 
   const getCategoryCount = (categoryId: string) => {
-    if (categoryId === 'all') return listings.length;
-    return listings.filter(l => l.category === categoryId).length;
+    if (categoryId === 'trash') {
+      return listings.filter(l => l.is_deleted === true).length;
+    }
+    const activeListings = listings.filter(l => !l.is_deleted);
+    if (categoryId === 'all') return activeListings.length;
+    return activeListings.filter(l => l.category === categoryId).length;
   }
 
   const displayedListings = listings.filter(listing => {
-    const matchesCategory = activeListingCategory === 'all' ? true : listing.category === activeListingCategory;
+    // 🌟 Filter logic to separate Trash and Active listings
+    if (activeListingCategory === 'trash') {
+      if (!listing.is_deleted) return false;
+    } else {
+      if (listing.is_deleted) return false;
+    }
+
+    const matchesCategory = activeListingCategory === 'all' || activeListingCategory === 'trash' ? true : listing.category === activeListingCategory;
     const q = searchQuery.toLowerCase();
     const title = typeof listing.title === 'string' ? listing.title.toLowerCase() : '';
     const location = typeof listing.location === 'string' ? listing.location.toLowerCase() : '';
@@ -442,11 +472,8 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Partner Info</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact & Agency</th>
-                    
-                    {/* 🌟 NEW COLUMNS ADDED HERE */}
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Logo</th>
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Visiting Card</th>
-                    
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -462,29 +489,20 @@ export default function AdminDashboard() {
                         <div className="text-sm font-bold text-gray-700">{vendor.company_name || 'N/A'}</div>
                         <div className="text-sm text-gray-500">{vendor.phone || 'No Phone'}</div>
                       </td>
-
-                      {/* 🌟 NEW: LOGO PREVIEW ICON */}
                       <td className="px-6 py-4 text-center">
                         {vendor.logo_url ? (
-                          <a href={vendor.logo_url} target="_blank" rel="noopener noreferrer" className="text-2xl hover:scale-110 transition-transform inline-block" title="View Logo">
-                            🖼️
-                          </a>
+                          <a href={vendor.logo_url} target="_blank" rel="noopener noreferrer" className="text-2xl hover:scale-110 transition-transform inline-block" title="View Logo">🖼️</a>
                         ) : (
                           <span className="text-gray-300 text-sm font-bold">N/A</span>
                         )}
                       </td>
-
-                      {/* 🌟 NEW: VISITING CARD PREVIEW ICON */}
                       <td className="px-6 py-4 text-center">
                         {vendor.visiting_card_url ? (
-                          <a href={vendor.visiting_card_url} target="_blank" rel="noopener noreferrer" className="text-2xl hover:scale-110 transition-transform inline-block" title="View Visiting Card">
-                            🪪
-                          </a>
+                          <a href={vendor.visiting_card_url} target="_blank" rel="noopener noreferrer" className="text-2xl hover:scale-110 transition-transform inline-block" title="View Visiting Card">🪪</a>
                         ) : (
                           <span className="text-gray-300 text-sm font-bold">N/A</span>
                         )}
                       </td>
-
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${
                           vendor.approval_status === 'approved' ? 'bg-green-100 text-green-800' : 
@@ -597,20 +615,30 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
-                          <Link href={getViewUrl(listing)} target="_blank" className="text-purple-600 hover:text-purple-900 font-bold bg-purple-50 px-3 py-1 rounded-md inline-block">👁️ View</Link>
-                          <Link href={getEditUrl(listing)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</Link>
-                          {listing.status === 'pending' && (
-                            <>
-                              <button onClick={() => updateListingStatus(listing.id, 'approved')} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
-                              <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
-                            </>
-                          )}
-                          {listing.status === 'approved' && (
-                            <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
-                          )}
                           
-                          {(listing.status === 'declined' || listing.status === 'draft') && (
-                            <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
+                          {/* 🌟 MODIFIED: If listing is deleted, show RESTORE, otherwise show view/edit/delete */}
+                          {listing.is_deleted ? (
+                            <button onClick={() => restoreListing(listing.id)} className="text-green-600 hover:text-green-900 font-bold bg-green-50 px-3 py-1 rounded-md ml-1 inline-block border border-green-100">♻️ Restore</button>
+                          ) : (
+                            <>
+                              <Link href={getViewUrl(listing)} target="_blank" className="text-purple-600 hover:text-purple-900 font-bold bg-purple-50 px-3 py-1 rounded-md inline-block">👁️ View</Link>
+                              <Link href={getEditUrl(listing)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</Link>
+                              
+                              {listing.status === 'pending' && (
+                                <>
+                                  <button onClick={() => updateListingStatus(listing.id, 'approved')} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
+                                  <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
+                                </>
+                              )}
+                              
+                              {listing.status === 'approved' && (
+                                <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
+                              )}
+                              
+                              {(listing.status === 'declined' || listing.status === 'draft') && (
+                                <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
+                              )}
+                            </>
                           )}
                         </td>
                       </tr>
