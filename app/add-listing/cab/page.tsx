@@ -18,14 +18,17 @@ function CabFormContent() {
   const [userRole, setUserRole] = useState('')
   const [message, setMessage] = useState({ type: '', text: '' })
 
-  // 🌟 NEW: Track button action (draft or publish)
+  // 🌟 NEW: Admin Vendor List
+  const [vendorsList, setVendorsList] = useState<any[]>([])
+
+  // Track button action (draft or publish)
   const [submitAction, setSubmitAction] = useState('publish')
 
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('') 
   const [slugEdited, setSlugEdited] = useState(false) 
 
-  // 🌟 SEO Meta States
+  // SEO Meta States
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [metaKeywords, setMetaKeywords] = useState('')
@@ -62,7 +65,7 @@ function CabFormContent() {
   const [customInclusions, setCustomInclusions] = useState([''])
   const [customExclusions, setCustomExclusions] = useState([''])
 
-  // 🌟 Main Thumbnail & Gallery States
+  // Main Thumbnail & Gallery States
   const [thumbnail, setThumbnail] = useState('')
   const [isUploadingThumb, setIsUploadingThumb] = useState(false)
   const [gallery, setGallery] = useState([''])
@@ -102,6 +105,22 @@ function CabFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
+    // 🌟 UPGRADED ADMIN FEATURE: Robust Vendor Fetching
+    if (profile.role === 'admin') {
+      const { data: vendorsData, error: vendorErr } = await supabase
+        .from('profiles')
+        .select('*') 
+        .in('role', ['vendor', 'admin'])
+        .order('created_at', { ascending: false });
+      
+      if (vendorErr) {
+        console.error("Supabase RLS Error: Vendor list fetch fail ho gayi!", vendorErr);
+        setMessage({ type: 'error', text: 'Admin Warning: Vendor list load nahi hui. Shayad Profiles table par RLS active hai.' })
+      } else if (vendorsData) {
+        setVendorsList(vendorsData);
+      }
+    }
+
     if (editId) {
       const { data: listing, error } = await supabase
         .from('listings')
@@ -114,6 +133,9 @@ function CabFormContent() {
         setLoading(false)
         return
       }
+
+      // 🌟 ADMIN FEATURE: Set Vendor ID to the listing's actual owner
+      if (listing.vendor_id) setVendorId(listing.vendor_id)
 
       setTitle(listing.title || '')
       setSlug(listing.slug || '')
@@ -175,7 +197,7 @@ function CabFormContent() {
     setLoading(false)
   }
 
-  // 🌟 IMGBB IMAGE UPLOAD HELPER FUNCTION
+  // IMGBB IMAGE UPLOAD HELPER FUNCTION
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
@@ -265,7 +287,7 @@ function CabFormContent() {
     setCabPrices(prev => ({ ...prev, [cab]: { ...prev[cab as keyof typeof cabPrices], [field]: value } }))
   }
 
-  // 🌟 NEW: Handles permanent deletion of the draft/listing
+  // Handles permanent deletion of the draft/listing
   const handleDeleteListing = async () => {
     if (!window.confirm("WARNING: Kya aap sach mein is cab service ko delete karna chahte hain? Yeh wapas recover nahi hoga.")) return
 
@@ -404,7 +426,6 @@ ${formattedFaqs}
       }
     }
 
-    // 🌟 NEW: Determine Final Status based on button clicked
     let finalStatus = "draft";
     if (submitAction === "publish") {
       finalStatus = userRole === "admin" ? "approved" : "pending";
@@ -419,8 +440,9 @@ ${formattedFaqs}
         description: detailedDescription, 
         location: displayLocation, 
         price: lowestPrice, 
-        status: finalStatus, // Applied Draft or Publish status here
-        metadata: metadata
+        status: finalStatus,
+        metadata: metadata,
+        vendor_id: vendorId // 🌟 Admin Re-assign Updates Vendor ID
       }).eq('id', editId)
       error = res.error
     } else {
@@ -432,7 +454,7 @@ ${formattedFaqs}
         category: 'cab', 
         location: displayLocation, 
         price: lowestPrice, 
-        status: finalStatus, // Applied Draft or Publish status here
+        status: finalStatus,
         metadata: metadata
       }])
       error = res.error
@@ -442,8 +464,6 @@ ${formattedFaqs}
       setMessage({ type: 'error', text: 'Error: ' + error.message })
       setSubmitting(false)
     } else {
-      
-      // Only send email if a new item is submitted for approval (not saved as draft)
       if (!editId && submitAction === 'publish') {
         fetch('/api/send-email', {
           method: 'POST',
@@ -494,6 +514,41 @@ ${formattedFaqs}
 
           <form onSubmit={handleSubmit} className="space-y-8">
 
+            {/* 🌟 UPGRADED ADMIN CONTROL: Vendor Assignment */}
+            {userRole === 'admin' && (
+              <div className="bg-amber-50 p-6 rounded-xl border border-amber-200 shadow-sm">
+                <label className="block text-sm font-black text-amber-900 mb-2 flex items-center gap-2">
+                  <span className="text-lg">🛡️</span> Admin Control: Assign this Cab to Vendor
+                </label>
+                
+                {vendorsList.length === 0 ? (
+                  <p className="text-red-600 font-bold bg-white p-3 border border-red-200 rounded-lg">
+                    ⚠️ Vendors fetch nahi ho paye. Kripya apna Supabase "profiles" table ka Row Level Security (RLS) check karein.
+                  </p>
+                ) : (
+                  <>
+                    <select
+                      value={vendorId}
+                      onChange={(e) => setVendorId(e.target.value)}
+                      className="w-full px-4 py-3 border border-amber-300 rounded-lg outline-none bg-white font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 cursor-pointer"
+                    >
+                      <option value="">-- Select Vendor --</option>
+                      {vendorsList.map((v) => {
+                        // 🌟 Display clean vendor name ONLY
+                        const displayTitle = v.business_name || v.name || v.full_name || v.email || 'Unnamed Vendor'
+                        return (
+                          <option key={v.id} value={v.id}>
+                            {displayTitle}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    <p className="text-xs text-amber-700 mt-2 font-medium">As an admin, you can assign or re-assign this listing to any registered vendor.</p>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Title & SEO Slug */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">1. Service Title & SEO</h2>
@@ -511,7 +566,7 @@ ${formattedFaqs}
                 </div>
               </div>
 
-              {/* 🌟 AI SEO Analyzer Component */}
+              {/* AI SEO Analyzer Component */}
               <div className="mt-6">
                 <SeoAnalyzer 
                   pageTitle={title}
@@ -801,7 +856,7 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* 🌟 Main Image & Gallery Uploads */}
+            {/* Main Image & Gallery Uploads */}
             <div className="border border-gray-200 p-6 rounded-xl bg-gray-50">
               <h2 className="text-lg font-bold text-gray-800 mb-4">7. Main Thumbnail & Cab Gallery</h2>
               
@@ -825,7 +880,6 @@ ${formattedFaqs}
                   <div key={index} className="flex items-center gap-2">
                     <input type="url" className="flex-1 px-4 py-2 border rounded-lg bg-white outline-none text-sm" placeholder="Image URL" value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
                     
-                    {/* 🌟 Folder Icon logic for ImgBB gallery upload */}
                     <label className={`px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm transition-colors border ${uploadingGalleryIndex === index ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'}`}>
                       {uploadingGalleryIndex === index ? '⏳...' : '📁'}
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => handleGalleryUpload(e, index)} disabled={uploadingGalleryIndex === index} />
@@ -855,7 +909,7 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* 🌟 NEW: Action Buttons (Delete, Save Draft, Publish) */}
+            {/* Action Buttons */}
             <div className="pt-6 border-t flex flex-col md:flex-row gap-4 mt-8">
               
               {editId && (

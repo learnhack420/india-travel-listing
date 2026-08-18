@@ -21,10 +21,13 @@ function TourFormContent() {
   const [userRole, setUserRole] = useState('') 
   const [message, setMessage] = useState({ type: '', text: '' })
 
-  // 🌟 NEW: Track button action (draft or publish)
+  // 🌟 NEW: Admin Vendor List
+  const [vendorsList, setVendorsList] = useState<any[]>([])
+
+  // Track button action (draft or publish)
   const [submitAction, setSubmitAction] = useState('publish')
   
-  // 🌟 NEW: Auto-save tracking states
+  // Auto-save tracking states
   const [currentEditId, setCurrentEditId] = useState<string | null>(editId)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
@@ -115,6 +118,23 @@ function TourFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
+    // 🌟 UPGRADED ADMIN FEATURE: Robust Vendor Fetching
+    if (profile.role === 'admin') {
+      // Hum saare columns select kar rahe hain taaki koi bhi name field ho toh catch ho jaye
+      const { data: vendorsData, error: vendorErr } = await supabase
+        .from('profiles')
+        .select('*') 
+        .in('role', ['vendor', 'admin'])
+        .order('created_at', { ascending: false });
+      
+      if (vendorErr) {
+        console.error("Supabase RLS Error: Vendor list fetch fail ho gayi!", vendorErr);
+        setMessage({ type: 'error', text: 'Admin Warning: Vendor list load nahi hui. Shayad Profiles table par RLS active hai.' })
+      } else if (vendorsData) {
+        setVendorsList(vendorsData);
+      }
+    }
+
     if (editId) {
       setCurrentEditId(editId)
       const { data: listing, error } = await supabase.from('listings').select('*').eq('id', editId).single()
@@ -124,6 +144,9 @@ function TourFormContent() {
         setLoading(false)
         return
       }
+
+      // 🌟 ADMIN FEATURE: Set Vendor ID to the listing's actual owner
+      if (listing.vendor_id) setVendorId(listing.vendor_id)
 
       setTitle(listing.title || '')
       setSlug(listing.slug || '')
@@ -173,7 +196,7 @@ function TourFormContent() {
     setLoading(false)
   }
 
-  // 🌟 CENTRALIZED PAYLOAD GENERATOR (Used by Auto-Save & Manual Submit)
+  // 🌟 CENTRALIZED PAYLOAD GENERATOR
   const generatePayload = (statusAction: string) => {
     const formattedDestinations = destinations.join(', ')
     const fullLocationString = `${startLocation} ${destinations.length > 0 ? '➔ ' + formattedDestinations : ''}`.trim()
@@ -268,28 +291,27 @@ ${formattedFaqs}
   useEffect(() => {
     if (!title.trim() || !vendorId || submitting) return;
 
-    // 1. Debounced Background Saver (Saves every 5 seconds of inactivity)
     const timeoutId = setTimeout(async () => {
       const dbPayload = generatePayload('draft');
       if (currentEditId) {
-        await supabase.from('listings').update(dbPayload).eq('id', currentEditId);
+        // 🌟 Admin vendor id change handle here
+        await supabase.from('listings').update({ ...dbPayload, vendor_id: vendorId }).eq('id', currentEditId);
         setLastSaved(new Date());
       } else {
         const { data } = await supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }]).select('id').single();
         if (data?.id) {
           setCurrentEditId(data.id);
-          window.history.replaceState(null, '', `?edit=${data.id}`); // URL update so reload edits the same draft
+          window.history.replaceState(null, '', `?edit=${data.id}`);
           setLastSaved(new Date());
         }
       }
     }, 5000);
 
-    // 2. Tab/Window Close Saver
     const handleCloseSave = () => {
       if (!title.trim() || !vendorId) return;
       const dbPayload = generatePayload('draft');
       if (currentEditId) {
-        supabase.from('listings').update(dbPayload).eq('id', currentEditId).then();
+        supabase.from('listings').update({ ...dbPayload, vendor_id: vendorId }).eq('id', currentEditId).then();
       } else {
         supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }]).then();
       }
@@ -306,10 +328,9 @@ ${formattedFaqs}
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }); // Runs to capture freshest state
+  }); 
 
-
-  // 🌟 HELPER FUNCTIONS 
+  // HELPER FUNCTIONS 
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
@@ -397,7 +418,8 @@ ${formattedFaqs}
     let error;
 
     if (currentEditId) {
-      const res = await supabase.from('listings').update(dbPayload).eq('id', currentEditId)
+      // 🌟 Include vendor_id so Admin reassignment applies
+      const res = await supabase.from('listings').update({ ...dbPayload, vendor_id: vendorId }).eq('id', currentEditId)
       error = res.error
     } else {
       const res = await supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }])
@@ -451,6 +473,41 @@ ${formattedFaqs}
           )}
 
           <form onSubmit={handleSubmit} className="space-y-10">
+
+            {/* 🌟 UPGRADED ADMIN CONTROL: Vendor Assignment */}
+            {userRole === 'admin' && (
+              <div className="bg-amber-50 p-6 rounded-xl border border-amber-200 shadow-sm">
+                <label className="block text-sm font-black text-amber-900 mb-2 flex items-center gap-2">
+                  <span className="text-lg">🛡️</span> Admin Control: Assign this Tour to Vendor
+                </label>
+                
+                {vendorsList.length === 0 ? (
+                  <p className="text-red-600 font-bold bg-white p-3 border border-red-200 rounded-lg">
+                    ⚠️ Vendors fetch nahi ho paye. Kripya apna Supabase "profiles" table ka Row Level Security (RLS) check karein.
+                  </p>
+                ) : (
+                  <>
+                    <select
+                      value={vendorId}
+                      onChange={(e) => setVendorId(e.target.value)}
+                      className="w-full px-4 py-3 border border-amber-300 rounded-lg outline-none bg-white font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 cursor-pointer"
+                    >
+                      <option value="">-- Select Vendor --</option>
+                      {vendorsList.map((v) => {
+                        // 🌟 Fallback check for different column names
+                        const displayTitle = v.business_name || v.name || v.full_name || v.email || 'Unnamed Vendor'
+                        return (
+                          <option key={v.id} value={v.id}>
+                            {displayTitle}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    <p className="text-xs text-amber-700 mt-2 font-medium">As an admin, you can assign or re-assign this listing to any registered vendor.</p>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Section 1: Basic Info */}
             <div>

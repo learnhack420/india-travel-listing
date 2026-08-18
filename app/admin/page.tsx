@@ -14,6 +14,9 @@ export default function AdminDashboard() {
   const [bookings, setBookings] = useState<any[]>([]) 
   const [isLoading, setIsLoading] = useState(true)
 
+  // 🌟 NEW STATE: To store all profiles mapping for listing's vendor info
+  const [allProfiles, setAllProfiles] = useState<any[]>([])
+
   // Edit Vendor Modal States
   const [editingVendor, setEditingVendor] = useState<any>(null)
   const [editName, setEditName] = useState('')
@@ -55,13 +58,20 @@ export default function AdminDashboard() {
       await Promise.all([
         fetchVendors(),
         fetchListings(),
-        fetchBookings()
+        fetchBookings(),
+        fetchAllProfiles() // 🌟 Fetching all profiles to map vendor names safely
       ])
     } catch (error) {
       console.error("Admin check failed:", error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // 🌟 NEW FUNCTION: Fetch all profiles to map vendor names in listings
+  async function fetchAllProfiles() {
+    const { data } = await supabase.from('profiles').select('id, full_name, company_name, email')
+    if (data) setAllProfiles(data)
   }
 
   // ============================
@@ -518,6 +528,8 @@ export default function AdminDashboard() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title & Location</th>
+                      {/* 🌟 NEW COLUMN HEADER */}
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vendor Info</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Category & Price</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
@@ -530,12 +542,25 @@ export default function AdminDashboard() {
                           <div className="text-sm font-bold text-gray-900">{listing.title}</div>
                           <div className="text-sm text-gray-500">📍 {formatLocationForList(listing.location)}</div>
                         </td>
+                        
+                        {/* 🌟 NEW COLUMN DATA: Show Vendor info dynamically */}
+                        <td className="px-6 py-4">
+                          {(() => {
+                            const vendor = allProfiles.find(p => p.id === listing.vendor_id);
+                            const vendorName = vendor ? (vendor.company_name || vendor.full_name || vendor.email) : 'Unknown Admin/Vendor';
+                            return (
+                              <div className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md inline-block border border-indigo-100">
+                                👤 {vendorName}
+                              </div>
+                            )
+                          })()}
+                        </td>
+
                         <td className="px-6 py-4">
                           <div className="text-sm font-bold text-blue-600 uppercase">{listing.category}</div>
                           <div className="text-sm text-gray-600 font-bold">{listing.category === 'destination' || listing.category === 'blog' ? 'Free / Info' : `₹${listing.price}`}</div>
                         </td>
                         <td className="px-6 py-4">
-                          {/* 🌟 Draft handling inside the status pill */}
                           <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${
                             listing.status === 'approved' ? 'bg-green-100 text-green-800' : 
                             listing.status === 'declined' ? 'bg-red-100 text-red-800' : 
@@ -558,7 +583,6 @@ export default function AdminDashboard() {
                             <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
                           )}
                           
-                          {/* 🌟 NEW: Added listing.status === 'draft' condition here to show delete button */}
                           {(listing.status === 'declined' || listing.status === 'draft') && (
                             <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
                           )}
