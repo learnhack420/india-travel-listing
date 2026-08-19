@@ -399,7 +399,7 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <span className="text-amber-400 font-black tracking-widest uppercase text-sm mb-2 block">Our Community</span>
-            <h2 className="text-4xl md:text-5xl font-black mb-4">Loved by Travelers</h2>
+            <h2 className="text-4xl md:text-5xl font-black mb-4">Loved by <span className="text-orange-500">Travelers</span></h2>
             <p className="text-slate-400 font-medium text-lg max-w-2xl mx-auto">Real experiences from travelers who explored India with our trusted local operators.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -443,7 +443,7 @@ export default async function Home() {
           </div>
 
           <div>
-            <h2 className="text-3xl font-black text-slate-900 mb-10 text-center tracking-tight">Frequently Asked Questions</h2>
+            <h2 className="text-3xl font-black text-slate-900 mb-10 text-center tracking-tight">Frequently Asked <span className="text-orange-600">Questions</span></h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {homeFaqs.map((faq, i) => (
                 <div key={i} className="bg-[#F8FAFC] p-8 rounded-[2rem] border border-slate-200 hover:border-blue-300 transition-colors shadow-sm">
@@ -463,7 +463,7 @@ export default async function Home() {
         <div className="relative z-10 max-w-5xl mx-auto bg-white/10 backdrop-blur-xl border border-white/20 p-10 md:p-16 rounded-[3rem] shadow-2xl flex flex-col md:flex-row items-center justify-between gap-12 text-center md:text-left">
           <div className="flex-1">
             <span className="bg-amber-400 text-slate-900 text-xs font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full mb-6 inline-block">For Businesses</span>
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">Are you a Travel Expert?</h2>
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">Are you a <span className="text-amber-400">Travel Expert?</span></h2>
             <p className="text-blue-100 text-lg md:text-xl font-medium max-w-xl">
               List your tour packages, hotels, and cabs on India's fastest-growing travel network and reach thousands of daily tourists.
             </p>
