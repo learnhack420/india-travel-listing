@@ -4,15 +4,27 @@ import { supabase } from '../../utils/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+// 🌟 ALL INDIAN STATES FOR EXACT MATCHING
+const INDIAN_STATES = [
+  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
+  "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", 
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", 
+  "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", 
+  "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", 
+  "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", 
+  "Uttarakhand", "West Bengal"
+].sort();
+
 export default function Register() {
   const [formData, setFormData] = useState({
-    fullName: '',       // Will be used for 'Name of Vendor'
+    fullName: '',       
     email: '',
     password: '',
     phone: '',          
-    location: '',       
-    website: '',        // 🌟 NEW: Added website field to registration form
-    role: 'vendor'      // Role is strictly fixed to 'vendor' now
+    city: '',           // 🌟 NEW: Separated City
+    state: '',          // 🌟 NEW: Separated State for Perfect Filtering
+    website: '',        
+    role: 'vendor'      
   })
   
   // States for Logo and Visiting Card
@@ -84,6 +96,9 @@ export default function Register() {
       return
     }
 
+    // 🌟 Format location exactly like Tour Packages (City, State)
+    const formattedLocation = `${formData.city}, ${formData.state}`;
+
     // Supabase Auth se naya user create karna aur metadata mein extra fields bhejna
     const { data, error } = await supabase.auth.signUp({
       email: formData.email,
@@ -93,9 +108,11 @@ export default function Register() {
           full_name: formData.fullName,
           role: formData.role,
           phone: formData.phone,
-          location: formData.location,
-          website: formData.website,             // 🌟 Pass website to metadata
-          logo_url: logoUrl,                 
+          location: formattedLocation,     // 🌟 Safe location string saved to DB
+          state: formData.state,           // 🌟 Also saving State separately for easy filtering
+          city: formData.city,             // 🌟 Also saving City separately
+          website: formData.website,             
+          logo_url: logoUrl,                
           visiting_card_url: visitingCardUrl 
         }
       }
@@ -115,8 +132,8 @@ export default function Register() {
             Email: formData.email,
             Phone: formData.phone,
             Account_Type: 'VENDOR',
-            Operating_Location: formData.location || 'N/A',
-            Website: formData.website || 'N/A', // 🌟 Included in email payload
+            Operating_Location: formattedLocation, // 🌟 Format: City, State
+            Website: formData.website || 'N/A', 
             Logo: logoUrl,                   
             Visiting_Card: visitingCardUrl,  
             Admin_Action: 'Pending Approval (Please approve from Admin Panel)'
@@ -243,17 +260,34 @@ export default function Register() {
                   placeholder="email@example.com" />
               </div>
 
-              {/* Operating Location */}
+              {/* 🌟 NEW: SMART STRUCTURED LOCATION FIELD 🌟 */}
               <div className="bg-cyan-50/80 p-4 rounded-2xl border border-cyan-100 transition-all">
-                <label className="block text-sm font-bold text-cyan-900 mb-1">Operating City / Location</label>
-                <input type="text" required 
-                  className="w-full px-4 py-3 rounded-xl border border-white bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
-                  value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} 
-                  placeholder="Ex: Kochi, Kerala or Mumbai" />
-                <p className="text-xs text-cyan-700 mt-2 font-medium">📍 Aap kis sheher se apni services operate karte hain?</p>
+                <label className="block text-sm font-bold text-cyan-900 mb-2">Operating Location *</label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                  {/* State Dropdown */}
+                  <select required
+                    className="w-full px-4 py-3 rounded-xl border border-white bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium shadow-sm cursor-pointer"
+                    value={formData.state}
+                    onChange={(e) => setFormData({...formData, state: e.target.value})}
+                  >
+                    <option value="" disabled>Select State</option>
+                    {INDIAN_STATES.map((state) => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                  
+                  {/* City Input */}
+                  <input type="text" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                    value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} 
+                    placeholder="City (e.g. Mumbai)" />
+                </div>
+                
+                <p className="text-xs text-cyan-700 font-medium mt-2">📍 Apni primary city aur state select karein taaki travelers aapko easily dhundh sakein.</p>
               </div>
 
-              {/* 🌟 NEW: Business Website URL */}
+              {/* Business Website URL */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Business Website URL (Optional)</label>
                 <input type="url" 

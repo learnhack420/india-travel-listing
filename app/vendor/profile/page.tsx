@@ -4,6 +4,17 @@ import { supabase } from '@/utils/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+// 🌟 ALL INDIAN STATES FOR EXACT MATCHING
+const INDIAN_STATES = [
+  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
+  "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", 
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", 
+  "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", 
+  "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", 
+  "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", 
+  "Uttarakhand", "West Bengal"
+].sort();
+
 export default function VendorProfile() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -18,6 +29,10 @@ export default function VendorProfile() {
   const [companyName, setCompanyName] = useState('')
   const [address, setAddress] = useState('')
   const [website, setWebsite] = useState('') 
+  
+  // 🌟 NEW: Location States (City & State)
+  const [city, setCity] = useState('')
+  const [selectedState, setSelectedState] = useState('')
 
   // 🌟 Document States for Logo & Visiting Card
   const [logoUrl, setLogoUrl] = useState('')
@@ -54,6 +69,10 @@ export default function VendorProfile() {
     setCompanyName(profile.company_name || '')
     setAddress(profile.address || '')
     setWebsite(profile.website || '') 
+    
+    // 🌟 Set City and State from profile
+    setCity(profile.city || '')
+    setSelectedState(profile.state || '')
     
     // 🌟 Set Document URLs from profile metadata
     setLogoUrl(profile.logo_url || '')
@@ -111,6 +130,9 @@ export default function VendorProfile() {
     setUpdating(true)
     setMessage({ type: '', text: '' })
 
+    // 🌟 Format location exactly like Tour Packages (City, State)
+    const formattedLocation = city && selectedState ? `${city}, ${selectedState}` : address;
+
     const { error } = await supabase
       .from('profiles')
       .update({
@@ -119,6 +141,9 @@ export default function VendorProfile() {
         company_name: companyName,
         address: address,
         website: website, 
+        location: formattedLocation,       // 🌟 Save formatted location
+        city: city,                        // 🌟 Save City separately
+        state: selectedState,              // 🌟 Save State separately
         logo_url: logoUrl,                 // 🌟 Save Logo URL to DB
         visiting_card_url: visitingCardUrl // 🌟 Save Card URL to DB
       })
@@ -185,8 +210,33 @@ export default function VendorProfile() {
                 <input type="url" className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://www.yourtravelwebsite.com" />
               </div>
 
+              {/* 🌟 NEW: SMART STRUCTURED LOCATION FIELD 🌟 */}
+              <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 transition-all">
+                <label className="block text-sm font-bold text-blue-900 mb-3">Operating Location (City & State) *</label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* State Dropdown */}
+                  <select required
+                    className="w-full px-4 py-3 rounded-xl border border-white bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-800 font-medium shadow-sm cursor-pointer"
+                    value={selectedState}
+                    onChange={(e) => setSelectedState(e.target.value)}
+                  >
+                    <option value="" disabled>Select State</option>
+                    {INDIAN_STATES.map((state) => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                  
+                  {/* City Input */}
+                  <input type="text" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-800 font-medium placeholder-gray-400 shadow-sm"
+                    value={city} onChange={(e) => setCity(e.target.value)} 
+                    placeholder="City (e.g. Mumbai)" />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Full Address / Location</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Full Address</label>
                 <textarea rows={3} className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 resize-none" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Aapka office ya business address..."></textarea>
               </div>
 

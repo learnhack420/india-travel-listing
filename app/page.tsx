@@ -1,30 +1,27 @@
 import { supabase } from '../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-// import MainSearchBox from './components/MainSearchBox' // Temporarily Commented Out
 import InteractiveIndiaMap from './components/InteractiveIndiaMap'
+import VendorInfoCard from './components/VendorInfoCard' 
+import VendorDirectory from './components/VendorDirectory' 
 
-// 🌟 SEO Metadata for India Tour Operators
 export const metadata: Metadata = {
   title: 'India Tour Operators - Best Tour Packages, Cabs & Hotels',
   description: 'Book verified India tour packages, outstation cabs, and luxury hotels with top-rated local tour operators across top destinations at the best prices.',
   keywords: 'India tour operators, tour packages India, cab booking India, hotel booking, travel agency, local guides, tourism portal'
 }
 
-// Helper function to remove HTML tags
 const stripHtml = (html: string) => {
   if (!html) return '';
   return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');   
 }
 
-// 🌟 MOCK DATA FOR SEO & UX
 const testimonials = [
   { name: "Rahul Sharma", location: "Mumbai", text: "Booked a Lonavala & Mahabaleshwar tour package through this portal. The local operator was extremely professional, and the price was 20% lower than other big sites!", rating: 5 },
   { name: "Priya Desai", location: "Pune", text: "Got an outstation cab for my Goa trip within 10 minutes. The driver was verified and the car was in top condition. Highly recommended.", rating: 5 },
   { name: "Amit Patel", location: "Ahmedabad", text: "Finding authentic local tour guides used to be hard. This platform made it so easy to compare prices and book a luxury hotel safely.", rating: 5 }
 ];
 
-// 🌟 Extended FAQs for Better SEO & User Trust
 const homeFaqs = [
   { q: "Why should I book through India Tour Operators?", a: "We connect you directly with verified local tour operators across India, cutting out middlemen to ensure authentic experiences at the best guaranteed prices." },
   { q: "Are the outstation cabs and drivers verified?", a: "Yes, all our cab partners and drivers undergo a strict background check. We prioritize your safety, comfort, and reliability for outstation and local trips." },
@@ -34,7 +31,6 @@ const homeFaqs = [
   { q: "What if I need help during my trip?", a: "We provide 24/7 expert customer support. In case of any emergencies or queries during your travel, our dedicated team is always just a call away to assist you." }
 ];
 
-// 🌟 PREDEFINED INDIAN STATES FOR DESTINATION SECTION
 const INDIAN_STATES = [
   { name: 'Maharashtra', desc: 'Forts, caves, Pilgrimage Temple, Hill Station & coastal Konkan', img: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?q=80&w=800&auto=format&fit=crop' },
   { name: 'Kerala', desc: 'Backwaters, tea gardens, hill station & beaches', img: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?q=80&w=800&auto=format&fit=crop' },
@@ -57,6 +53,28 @@ export default async function Home() {
 
   if (error) console.error('Error fetching listings:', error)
 
+  const { data: vendorsData, error: vendorsError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'vendor')
+    .eq('approval_status', 'approved')
+    .order('created_at', { ascending: false })
+
+  if (vendorsError) console.error('Error fetching vendors:', vendorsError)
+
+  const approvedVendors = vendorsData || [];
+  
+  const newlyRegisteredVendors = approvedVendors.slice(0, 10);
+
+  const vendorsByState = approvedVendors.reduce((acc, vendor) => {
+    const state = vendor.state && vendor.state.trim() !== '' ? vendor.state : 'Other Locations';
+    if (!acc[state]) acc[state] = [];
+    acc[state].push(vendor);
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  const sortedVendorStates = Object.keys(vendorsByState).sort();
+
   const getListingUrl = (listing: any) => {
     const slug = listing.slug || listing.id
     if (listing.category === 'tour') return `/tour/${slug}`
@@ -67,7 +85,6 @@ export default async function Home() {
     return `/listing/${slug}`
   }
 
-  // 🌟 PERFECT THUMBNAIL EXTRACTOR
   const getThumbnail = (listing: any) => {
     const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
     const exactImage = listing.image || listing.thumbnail || meta.thumbnail || meta.image;
@@ -87,7 +104,6 @@ export default async function Home() {
   const cabs = listings?.filter((l) => l.category === 'cab') || []
   const blogs = listings?.filter((l) => l.category === 'blog') || []
 
-  // 🌟 DYNAMIC STATE CALCULATION FOR NEW SECTION
   const activeStates = INDIAN_STATES.map(state => {
     const stateListings = listings?.filter(l => l.location?.toLowerCase().includes(state.name.toLowerCase())) || [];
     const tourCount = stateListings.filter(l => l.category === 'tour').length;
@@ -99,14 +115,15 @@ export default async function Home() {
       placeCount,
       total: tourCount + placeCount
     };
-  }).filter(state => state.total > 0); // 🔴 Yaha filter laga diya hai. Sirf > 0 wale States hi dikhenge!
+  }).filter(state => state.total > 0); 
 
+  // 🌟 NEW: Split titles into two parts for the Premium Two-Color Highlight
   const sections = [
-    { title: "Top Tour Packages", items: tours, viewAllLink: "/tours", icon: "🗺️", badge: "Most Popular" },
-    { title: "Trending Destinations", items: destinations, viewAllLink: "/places", icon: "📍", badge: "Must Visit" },
-    { title: "Luxury & Budget Hotels", items: hotels, viewAllLink: "/hotels", icon: "🏨", badge: "Best Stays" },
-    { title: "Outstation Cabs", items: cabs, viewAllLink: "/cabs", icon: "🚖", badge: "Safe & Reliable" },
-    { title: "Travel Guides & Blogs", items: blogs, viewAllLink: "/blogs", icon: "📖", badge: "Expert Tips" },
+    { titleStart: "Top Tour", titleHighlight: "Packages", items: tours, viewAllLink: "/tours", icon: "🗺️", badge: "Most Popular" },
+    { titleStart: "Trending", titleHighlight: "Destinations", items: destinations, viewAllLink: "/places", icon: "📍", badge: "Must Visit" },
+    { titleStart: "Luxury & Budget", titleHighlight: "Hotels", items: hotels, viewAllLink: "/hotels", icon: "🏨", badge: "Best Stays" },
+    { titleStart: "Outstation", titleHighlight: "Cabs", items: cabs, viewAllLink: "/cabs", icon: "🚖", badge: "Safe & Reliable" },
+    { titleStart: "Travel Guides &", titleHighlight: "Blogs", items: blogs, viewAllLink: "/blogs", icon: "📖", badge: "Expert Tips" },
   ]
 
   const faqSchema = {
@@ -121,18 +138,14 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-[#F8FAFC] font-sans selection:bg-amber-300 selection:text-slate-900">
-
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
       {/* --- 💎 ULTRA-PREMIUM HERO SECTION --- */}
       <section className="relative bg-slate-950 text-white pt-28 pb-32 px-4 md:px-8 overflow-hidden flex flex-col justify-center min-h-[90vh]">
-        {/* Animated Cinematic Background Orbs */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
           <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px] mix-blend-screen"></div>
           <div className="absolute top-[30%] -right-[10%] w-[40%] h-[40%] bg-amber-500/10 rounded-full blur-[120px] mix-blend-screen"></div>
           <div className="absolute -bottom-[20%] left-[20%] w-[60%] h-[60%] bg-indigo-600/20 rounded-full blur-[120px] mix-blend-screen"></div>
-          
-          {/* Subtle Grid Overlay for texture */}
           <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
         </div>
 
@@ -153,7 +166,6 @@ export default async function Home() {
           </p>
         </div>
 
-        {/* 👇 INTERACTIVE MAP 👇 */}
         <div className="relative z-20 max-w-5xl mx-auto mt-8 pb-10 w-full">
           <InteractiveIndiaMap />
         </div>
@@ -188,10 +200,51 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* --- 🌟 NEW: EXPLORE BY DESTINATION (STATE) SECTION --- */}
+      {/* --- 🌟 NEWLY REGISTERED VENDORS (SLIDER / CAROUSEL) --- */}
+      {newlyRegisteredVendors.length > 0 && (
+        <section className="max-w-[90rem] mx-auto mb-20 pt-4 overflow-hidden">
+          <div className="max-w-6xl mx-auto px-4 md:px-8 mb-8 text-center md:text-left">
+            <span className="text-amber-500 font-black tracking-widest uppercase text-sm mb-2 block">Our Newest Additions</span>
+            <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
+              Newly Registered <span className="text-orange-600">Vendors</span>
+            </h2>
+            <p className="text-slate-500 mt-2 text-lg font-medium">Swipe left to discover the latest local travel experts who joined us.</p>
+          </div>
+          
+          <div className="flex gap-6 overflow-x-auto pb-8 pt-2 px-4 md:px-8 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+            {newlyRegisteredVendors.map(vendor => (
+              <div key={`new-${vendor.id}`} className="shrink-0 w-[85vw] sm:w-[400px] snap-center">
+                <div className="h-full">
+                  <VendorInfoCard vendorId={vendor.id} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* --- 🌟 STATE-WISE VENDORS SECTION --- */}
+      {sortedVendorStates.length > 0 && (
+        <section className="max-w-6xl mx-auto px-4 md:px-8 mb-20">
+          <div className="mb-10 text-center md:text-left">
+            <span className="text-emerald-500 font-black tracking-widest uppercase text-sm mb-2 block">Find Local Experts</span>
+            <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
+              Vendors by <span className="text-orange-600">State</span>
+            </h2>
+            <p className="text-slate-500 mt-3 text-lg font-medium max-w-2xl mx-auto md:mx-0">
+              Click on any state card below to discover verified travel agencies and cab operators in that region.
+            </p>
+          </div>
+
+          <VendorDirectory groupedVendors={vendorsByState} stateData={INDIAN_STATES} />
+          
+        </section>
+      )}
+
+      {/* --- 🌟 EXPLORE BY DESTINATION (STATE) SECTION --- */}
       {activeStates.length > 0 && (
         <section className="max-w-6xl mx-auto px-4 md:px-8 mb-20 pt-4">
-          <div className="mb-10">
+          <div className="mb-10 text-center md:text-left">
             <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
               Explore Packages by <span className="text-orange-600">Destination</span>
             </h2>
@@ -207,23 +260,16 @@ export default async function Home() {
                 key={idx} 
                 className="group relative h-64 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
               >
-                {/* Background Image */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={state.img} 
                   alt={state.name} 
                   className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
                 />
-                
-                {/* Dark Gradient Overlay for Text Readability */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
-                
-                {/* Content Container */}
                 <div className="absolute bottom-0 left-0 p-6 w-full">
                   <h3 className="text-2xl font-bold text-white mb-1 shadow-sm">{state.name}</h3>
                   <p className="text-slate-200 text-xs line-clamp-2 mb-4 font-medium leading-relaxed">{state.desc}</p>
-                  
-                  {/* Tour and Place Count Badges */}
                   <div className="flex flex-wrap gap-2">
                     {state.tourCount > 0 && (
                       <span className="bg-white/20 backdrop-blur-md border border-white/20 text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1.5 rounded-full">
@@ -260,8 +306,12 @@ export default async function Home() {
                       {section.badge}
                     </span>
                   </div>
+                  {/* 🌟 HIGHLIGHTING THE LAST WORD IN ORANGE */}
                   <h2 className="text-3xl md:text-5xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
-                    <span className="text-4xl md:text-5xl drop-shadow-sm">{section.icon}</span> {section.title}
+                    <span className="text-4xl md:text-5xl drop-shadow-sm">{section.icon}</span> 
+                    <span>
+                      {section.titleStart} <span className="text-orange-600">{section.titleHighlight}</span>
+                    </span>
                   </h2>
                 </div>
                 {hasMoreItems && (
@@ -281,7 +331,6 @@ export default async function Home() {
                   return (
                     <Link href={detailUrl} key={listing.id} className="bg-white rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-1.5 hover:border-blue-200 transition-all duration-500 flex flex-col group cursor-pointer">
                       
-                      {/* Image Container */}
                       <div className="relative h-64 w-full bg-slate-100 overflow-hidden flex items-center justify-center">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
@@ -289,21 +338,17 @@ export default async function Home() {
                           alt={listing.title} 
                           className={`w-full h-full ${imageUrl === '/ITO LOGO.png' ? 'object-contain p-8 opacity-50' : 'object-cover group-hover:scale-110 transition-transform duration-1000 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]'}`} 
                         />
-                        {/* Elegant Gradient Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500"></div>
                         
-                        {/* Glassmorphic Category Badge */}
                         <span className="absolute top-5 left-5 text-[10px] font-black text-slate-900 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full uppercase tracking-widest shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-white/50">
                           {listing.category === 'blog' && listing.metadata?.blogCategory ? listing.metadata.blogCategory : listing.category === 'destination' ? 'Tourist Place' : listing.category}
                         </span>
                         
-                        {/* Absolute Location Tag on Image for cleaner bottom look */}
                         <span className="absolute bottom-5 left-5 text-white text-sm font-bold flex items-center gap-1.5 drop-shadow-md">
                           <span className="text-amber-400">📍</span> {listing.location ? listing.location.split(',')[0] : 'India'}
                         </span>
                       </div>
 
-                      {/* Content Container */}
                       <div className="p-7 flex-1 flex flex-col justify-between relative bg-white">
                         <div>
                           <h3 className="text-xl md:text-2xl font-black text-slate-800 line-clamp-2 group-hover:text-blue-600 transition-colors leading-tight mb-3">
@@ -337,7 +382,7 @@ export default async function Home() {
               {hasMoreItems && (
                 <div className="mt-12 text-center md:hidden">
                   <Link href={section.viewAllLink} className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-8 py-4 rounded-full transition-all shadow-lg text-sm w-full">
-                    Explore All {section.title} →
+                    Explore All {section.titleStart} {section.titleHighlight} →
                   </Link>
                 </div>
               )}
@@ -347,9 +392,7 @@ export default async function Home() {
       </div>
 
       {/* --- 💎 GLASSMORPHISM TESTIMONIALS SECTION --- */}
-      {/* Matches the Map's aesthetic perfectly */}
       <section className="bg-slate-950 py-24 px-4 md:px-8 text-white relative overflow-hidden">
-        {/* Cinematic Orbs */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px]"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px]"></div>
         
@@ -382,15 +425,12 @@ export default async function Home() {
       {/* --- 💎 PREMIUM SEO KEYWORD TEXT & FAQ SECTION --- */}
       <section className="bg-white py-24 px-4 md:px-8">
         <div className="max-w-5xl mx-auto">
-          
-          {/* SEO Text - Redesigned like an editorial magazine */}
           <div className="mb-24">
             <div className="text-center max-w-4xl mx-auto mb-16">
               <span className="w-12 h-1 bg-amber-400 rounded-full inline-block mb-6"></span>
               <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-8 tracking-tight leading-tight">
-                Why Choose <span className="text-blue-600">India Tour Operators?</span>
+                Why Choose <span className="text-orange-600">India Tour Operators?</span>
               </h2>
-              
               <div className="space-y-6 text-slate-600 text-lg leading-relaxed font-medium text-left md:text-center">
                 <p>
                   Welcome to <strong className="text-slate-900 font-black">India Tour Operators</strong>, the leading aggregator platform connecting travelers with verified, top-rated local travel agencies across India. Whether you are looking for customized <strong className="text-blue-600 font-black">tour packages</strong>, reliable <strong className="text-blue-600 font-black">outstation cab booking</strong> services, or luxurious yet affordable <strong className="text-blue-600 font-black">hotel bookings</strong>, we have everything organized in one place.
@@ -402,7 +442,6 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Clean Modern FAQ */}
           <div>
             <h2 className="text-3xl font-black text-slate-900 mb-10 text-center tracking-tight">Frequently Asked Questions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -414,13 +453,11 @@ export default async function Home() {
               ))}
             </div>
           </div>
-
         </div>
       </section>
 
       {/* --- 💎 MASSIVE BOTTOM CTA SECTION --- */}
       <section className="relative py-24 px-4 md:px-8 overflow-hidden bg-blue-600">
-        {/* Dynamic Background Pattern */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:20px_20px]"></div>
         
         <div className="relative z-10 max-w-5xl mx-auto bg-white/10 backdrop-blur-xl border border-white/20 p-10 md:p-16 rounded-[3rem] shadow-2xl flex flex-col md:flex-row items-center justify-between gap-12 text-center md:text-left">
@@ -433,7 +470,7 @@ export default async function Home() {
           </div>
           <div className="flex flex-col w-full md:w-auto gap-4 shrink-0">
             <Link href="/register" className="bg-white hover:bg-slate-50 text-blue-600 font-black px-10 py-5 rounded-2xl text-center shadow-xl transition-all text-lg active:scale-95 border border-white hover:shadow-2xl">
-              Join as Partner →
+              Join as Vendor →
             </Link>
             <Link href="/contact" className="bg-transparent hover:bg-white/10 border-2 border-white/30 text-white font-black px-10 py-5 rounded-2xl text-center transition-all text-lg active:scale-95">
               Contact Support
