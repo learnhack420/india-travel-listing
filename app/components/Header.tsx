@@ -79,7 +79,7 @@ export default function Header() {
                       <li><Link href="/search?destination=Rajasthan" className="hover:text-blue-600 transition-colors block">Rajasthan Tour Packages</Link></li>
                       <li><Link href="/search?destination=Kashmir" className="hover:text-blue-600 transition-colors block">Kashmir Tour Packages</Link></li>
                       <li><Link href="/search?destination=Himachal" className="hover:text-blue-600 transition-colors block">Himachal Tour Packages</Link></li>
-                      <li className="pt-2"><Link href="/destinations" className="text-blue-600 hover:underline">View All Destinations →</Link></li>
+                      <li className="pt-2"><Link href="/tours" className="text-blue-600 hover:underline">View All Destinations →</Link></li>
                     </ul>
                   </div>
 
