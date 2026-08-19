@@ -4,6 +4,7 @@ import './globals.css'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import FloatingContact from './components/FloatingContact' // Sahi relative path
+import FloatingCustomTour from './components/FloatingCustomTour' // 🌟 NAYA COMPONENT IMPORT KIYA HAI
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -30,6 +31,9 @@ export default function RootLayout({
         
         {/* Footer sabse neeche rahega */}
         <Footer />
+
+        {/* 🌟 NAYA: Floating Custom Tour Button (WhatsApp ke upar dikhega) */}
+        <FloatingCustomTour />
 
         {/* Floating Contact Button (WhatsApp & Helplines) */}
         <FloatingContact />

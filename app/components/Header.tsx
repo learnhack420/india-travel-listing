@@ -2,10 +2,12 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../utils/supabase'
+import CustomTourModal from './CustomTourModal' // 🌟 NAYA COMPONENT IMPORT KIYA HAI
 
 export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [categories, setCategories] = useState<any[]>([]) 
+  const [isModalOpen, setIsModalOpen] = useState(false) // 🌟 MODAL STATE ADD KI HAI
 
   useEffect(() => {
     checkUser()
@@ -90,6 +92,7 @@ export default function Header() {
                       <ul className="space-y-3 text-sm font-medium text-gray-600">
                         {categories.slice(0, Math.ceil(categories.length / 2)).map((cat) => (
                           <li key={cat.id}>
+                            {/* 🌟 MODIFIED: Redirecting to search page with theme parameter */}
                             <Link href={`/search?theme=${cat.value}`} className="hover:text-blue-600 transition-colors block">
                               {cat.label}
                             </Link>
@@ -104,6 +107,7 @@ export default function Header() {
                       <ul className="space-y-3 text-sm font-medium text-gray-600">
                         {categories.slice(Math.ceil(categories.length / 2)).map((cat) => (
                           <li key={cat.id}>
+                            {/* 🌟 MODIFIED: Redirecting to search page with theme parameter */}
                             <Link href={`/search?theme=${cat.value}`} className="hover:text-blue-600 transition-colors block">
                               {cat.label}
                             </Link>
@@ -197,14 +201,25 @@ export default function Header() {
             <Link href="/search?service=hotel" className="text-gray-700 hover:text-blue-600 font-medium transition-colors h-full flex items-center">Hotels</Link>
           </nav>
 
-          {/* Right Section (Login / Dashboard) */}
-          <div className="flex items-center space-x-4">
+          {/* Right Section (Custom Tour Button + Login / Dashboard) */}
+          <div className="flex items-center space-x-3">
+            
+            {/* 🌟 NAYA: CUSTOM TOUR BUTTON 🌟 */}
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="hidden md:flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 text-sm"
+            >
+              <span className="text-base">✨</span> Plan Custom Tour
+            </button>
+
+            <div className="w-px h-6 bg-gray-200 hidden md:block mx-1"></div> {/* Divider */}
+
             {isLoggedIn ? (
-              <Link href="/vendor" className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-bold hover:bg-blue-100 transition-colors">
+              <Link href="/vendor" className="bg-blue-50 text-blue-700 px-4 py-2.5 rounded-xl font-bold hover:bg-blue-100 transition-colors text-sm">
                 Dashboard
               </Link>
             ) : (
-              <Link href="/login" className="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm">
+              <Link href="/login" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm text-sm">
                 Become a Partner
               </Link>
             )}
@@ -212,6 +227,9 @@ export default function Header() {
 
         </div>
       </div>
+
+      {/* 🌟 MODAL COMPONENT MOUNT KIYA HAI 🌟 */}
+      <CustomTourModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </header>
   )
 }
