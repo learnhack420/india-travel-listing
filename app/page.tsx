@@ -35,13 +35,13 @@ const INDIAN_STATES = [
   { name: 'Maharashtra', desc: 'Forts, caves, Pilgrimage Temple, Hill Station & coastal Konkan', img: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?q=80&w=800&auto=format&fit=crop' },
   { name: 'Kerala', desc: 'Backwaters, tea gardens, hill station & beaches', img: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?q=80&w=800&auto=format&fit=crop' },
   { name: 'Goa', desc: 'Beaches, forts, cruises & nightlife', img: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?q=80&w=800&auto=format&fit=crop' },
-  { name: 'Karnataka', desc: 'Heritage, temples, hill stations, Hampi ruins', img: 'https://images.unsplash.com/photo-1620766165457-a80fe560c888?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Karnataka', desc: 'Heritage, temples, hill stations, Hampi ruins', img: 'https://i.ibb.co/C5sMFH3c/Mysore-5.webp' },
   { name: 'Himachal Pradesh', desc: 'Hill stations, temples, adventure, Snow valleys', img: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?q=80&w=800&auto=format&fit=crop' },
   { name: 'Kashmir', desc: 'Valleys, lakes & spiritual escapes, Dal Lake', img: 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?q=80&w=800&auto=format&fit=crop' },
-  { name: 'Gujarat', desc: 'Temples, desert & heritage', img: 'https://images.unsplash.com/photo-1629851174676-e17f369bdcfd?q=80&w=800&auto=format&fit=crop' },
+  { name: 'Gujarat', desc: 'Temples, desert & heritage', img: 'https://i.ibb.co/whRPWNWJ/Rani-Ki-Vav-Patan-Gujarat-JM22.jpg' },
   { name: 'Rajasthan', desc: 'Forts, palaces & desert adventures', img: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?q=80&w=800&auto=format&fit=crop' },
-  { name: 'Uttarakhand', desc: 'Yoga, spirituality, trekking & Himalayas', img: 'https://images.unsplash.com/photo-1610715936287-6c2ab2083200?q=80&w=800&auto=format&fit=crop' },
-  { name: 'Sikkim', desc: 'Glaciers, alpine meadows & Buddhist shrines', img: 'https://images.unsplash.com/photo-1622308644420-b003a2789146?q=80&w=800&auto=format&fit=crop' }
+  { name: 'Uttarakhand', desc: 'Yoga, spirituality, trekking & Himalayas', img: 'https://i.ibb.co/pBx0h2bQ/Valley-of-flowers-national-park-Uttarakhand-India-03-edit.jpg' },
+  { name: 'Sikkim', desc: 'Glaciers, alpine meadows & Buddhist shrines', img: 'https://i.ibb.co/Mxgx0CJG/Buddha-statue-at-Buddha-Park-of-Ravangla-Sikkim-India-1.jpg' }
 ];
 
 export default async function Home() {
