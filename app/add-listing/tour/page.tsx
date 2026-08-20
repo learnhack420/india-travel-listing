@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useRef } from 'react'
 import { supabase } from '../../../utils/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -22,20 +22,15 @@ function TourFormContent() {
   const [message, setMessage] = useState({ type: '', text: '' })
 
   const [vendorsList, setVendorsList] = useState<any[]>([])
-
-  // 🌟 NEW STATE: Dynamic Categories from Database
   const [tourThemesOptions, setTourThemesOptions] = useState<{value: string, label: string}[]>([])
-
   const [submitAction, setSubmitAction] = useState('publish')
-  
+
   const [currentEditId, setCurrentEditId] = useState<string | null>(editId)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
-  
-  // 🌟 MODIFIED STATE: Array for Multiple Theme/Category Selection
   const [tourThemes, setTourThemes] = useState<string[]>([])
 
   const [thumbnail, setThumbnail] = useState('')
@@ -44,26 +39,25 @@ function TourFormContent() {
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [metaKeywords, setMetaKeywords] = useState('')
-  
+
   const [startLocation, setStartLocation] = useState('')
   const [destinations, setDestinations] = useState<string[]>([])
-  
+
   const [durationDays, setDurationDays] = useState('3')
   const [durationNights, setDurationNights] = useState('2')
   const [durationHours, setDurationHours] = useState('0')
   const [pickupTimes, setPickupTimes] = useState(['08:00']) 
 
   const [price, setPrice] = useState('') 
-  
+
   const [bestTimeToVisit, setBestTimeToVisit] = useState('')
   const [bestMonths, setBestMonths] = useState<string[]>([])
-  
+
   const [overview, setOverview] = useState('') 
   const [personPrices, setPersonPrices] = useState({ min2: '', min4: '', min6: '', min8: '' })
   const [cabPrices, setCabPrices] = useState({ hatchback: '', sedan: '', suv: '', innova: '', tempo: '' })
-  
   const [cabExtraCharges, setCabExtraCharges] = useState({ hatchback: '', sedan: '', suv: '', innova: '', tempo: '' })
-  
+
   const [placesToVisit, setPlacesToVisit] = useState(['']) 
   const [itineraryDays, setItineraryDays] = useState([{ day: 1, title: '', description: '' }]) 
   const [inclusions, setInclusions] = useState('')
@@ -73,6 +67,10 @@ function TourFormContent() {
   const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null)
 
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
+
+  // 🌟 NEW REFS TO PREVENT RACE CONDITIONS & DUPLICATES
+  const submittingRef = useRef(false)
+  const latestDataRef = useRef<any>(null)
 
   const quillModules = {
     toolbar: [
@@ -85,7 +83,7 @@ function TourFormContent() {
   }
 
   const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  
+
   useEffect(() => {
     fetchDynamicCategories() 
     checkVendorAndLoadData()
@@ -136,7 +134,7 @@ function TourFormContent() {
         .select('*') 
         .in('role', ['vendor', 'admin'])
         .order('created_at', { ascending: false });
-      
+
       if (vendorErr) {
         setMessage({ type: 'error', text: 'Admin Warning: Vendor list load nahi hui. Shayad Profiles table par RLS active hai.' })
       } else if (vendorsData) {
@@ -162,8 +160,7 @@ function TourFormContent() {
       setPrice(listing.price?.toString() || '')
 
       const meta = listing.metadata || {}
-      
-      // 🌟 Handle Legacy Single String or New Array for Tour Themes
+
       if (meta.tourTheme) {
         setTourThemes(Array.isArray(meta.tourTheme) ? meta.tourTheme : [meta.tourTheme])
       }
@@ -190,15 +187,15 @@ function TourFormContent() {
       if (meta.pickupTimes?.length > 0) setPickupTimes(meta.pickupTimes)
       setBestTimeToVisit(meta.bestTimeToVisit || '')
       if (meta.bestMonths?.length > 0) setBestMonths(meta.bestMonths)
-      
+
       setOverview(meta.overview || '')
       if (meta.personPrices) setPersonPrices(meta.personPrices)
       if (meta.cabPrices) setCabPrices(meta.cabPrices)
       if (meta.cabExtraCharges) setCabExtraCharges(meta.cabExtraCharges)
-      
+
       if (meta.placesToVisit?.length > 0) setPlacesToVisit(meta.placesToVisit)
       if (meta.itineraryDays?.length > 0) setItineraryDays(meta.itineraryDays)
-      
+
       setInclusions(meta.inclusions || '')
       setExclusions(meta.exclusions || '')
 
@@ -209,7 +206,6 @@ function TourFormContent() {
     setLoading(false)
   }
 
-  // 🌟 NEW FUNCTION: Toggle Multiple Themes
   const toggleTheme = (value: string) => {
     setTourThemes(prev =>
       prev.includes(value) ? prev.filter(t => t !== value) : [...prev, value]
@@ -256,7 +252,6 @@ function TourFormContent() {
     const formattedPlaces = placesToVisit.filter(p => p.trim() !== '').join(', ') || 'Not provided'
     const formattedBestTime = `Description: ${bestTimeToVisit || 'Not specified'}\nRecommended Months: ${bestMonths.length > 0 ? bestMonths.join(', ') : 'All Year Round'}`.trim()
 
-    // 🌟 Format Multiple Themes for Description
     const selectedThemeLabels = tourThemes.length > 0 
       ? tourThemes.map(val => tourThemesOptions.find(t => t.value === val)?.label || val).join(', ') 
       : 'Not Categorized'
@@ -295,7 +290,7 @@ ${formattedFaqs}
     const metadata = {
       duration: finalDuration, durationRaw: { d: durationDays, n: durationNights, h: durationHours },
       startLocation, destinationsArray: destinations, pickupTimes: cleanPickupTimes,
-      tourTheme: tourThemes, // 🌟 Save array to metadata (kept 'tourTheme' key for compatibility)
+      tourTheme: tourThemes,
       overview, placesToVisit: placesToVisit.filter(p => p.trim() !== ''),
       itineraryDays: itineraryDays.filter(d => d.title.trim() !== ''),
       personPrices, cabPrices, cabExtraCharges,
@@ -314,46 +309,42 @@ ${formattedFaqs}
     }
   }
 
+  // 🌟 1. KEEP LATEST DATA IN REF (Taaki window close par fresh data use ho)
   useEffect(() => {
-    if (!title.trim() || !vendorId || submitting) return;
+    latestDataRef.current = {
+      title,
+      vendorId,
+      currentEditId,
+      generate: () => generatePayload('draft')
+    }
+  })
 
-    const timeoutId = setTimeout(async () => {
-      const dbPayload = generatePayload('draft');
-      if (currentEditId) {
-        await supabase.from('listings').update({ ...dbPayload, vendor_id: vendorId }).eq('id', currentEditId);
-        setLastSaved(new Date());
-      } else {
-        const { data } = await supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }]).select('id').single();
-        if (data?.id) {
-          setCurrentEditId(data.id);
-          window.history.replaceState(null, '', `?edit=${data.id}`);
-          setLastSaved(new Date());
-        }
-      }
-    }, 5000);
-
+  // 🌟 2. FIXED AUTO-SAVE LOGIC (Only runs on Window Close / Tab Switch, blocked if Publish clicked)
+  useEffect(() => {
     const handleCloseSave = () => {
-      if (!title.trim() || !vendorId) return;
-      const dbPayload = generatePayload('draft');
-      if (currentEditId) {
-        supabase.from('listings').update({ ...dbPayload, vendor_id: vendorId }).eq('id', currentEditId).then();
+      const data = latestDataRef.current
+      // Agar user ne 'Publish' ya 'Draft' button click kiya hai, toh is auto-save ko block kar do
+      if (submittingRef.current || !data || !data.title.trim() || !data.vendorId) return
+
+      const dbPayload = data.generate()
+      if (data.currentEditId) {
+        supabase.from('listings').update({ ...dbPayload, vendor_id: data.vendorId }).eq('id', data.currentEditId).then()
       } else {
-        supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }]).then();
+        supabase.from('listings').insert([{ ...dbPayload, vendor_id: data.vendorId, category: 'tour' }]).then()
       }
-    };
+    }
 
-    const handleVisibilityChange = () => { if (document.visibilityState === 'hidden') handleCloseSave(); };
-    const handleBeforeUnload = () => { handleCloseSave(); };
+    const handleVisibilityChange = () => { if (document.visibilityState === 'hidden') handleCloseSave() }
+    const handleBeforeUnload = () => { handleCloseSave() }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('beforeunload', handleBeforeUnload)
 
     return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }); 
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, []) // Empty dependency array, safe because of latestDataRef
 
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
@@ -423,19 +414,20 @@ ${formattedFaqs}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!startLocation || destinations.length === 0) {
       setMessage({ type: 'error', text: 'Please select both Origin and at least one Destination!' })
       return
     }
 
-    // 🌟 Validation for Categories
     if (tourThemes.length === 0) {
       setMessage({ type: 'error', text: 'Please select at least one Tour Theme/Category!' })
       return
     }
 
+    // 🌟 STOP THE BACKGROUND AUTO-SAVE WHEN USER CLICKS SUBMIT/PUBLISH
     setSubmitting(true)
+    submittingRef.current = true 
     setMessage({ type: '', text: '' })
 
     let finalStatus = "draft";
@@ -455,8 +447,9 @@ ${formattedFaqs}
     }
 
     if (error) {
-      setMessage({ type: 'error', text: error.code === '23505' ? 'Error: Yeh SEO Slug pehle se used hai.' : 'Error: ' + error.message })
+      setMessage({ type: 'error', text: error.code === '23505' ? 'Error: Yeh SEO Slug pehle se kisi aur listing me used hai. Kripya slug change karein.' : 'Error: ' + error.message })
       setSubmitting(false)
+      submittingRef.current = false // Re-enable background save on error
     } else {
       if (!currentEditId && submitAction === 'publish') {
         fetch('/api/send-email', {
@@ -470,7 +463,7 @@ ${formattedFaqs}
 
       setMessage({ type: 'success', text: submitAction === 'draft' ? '✅ Draft saved successfully!' : (currentEditId ? '✅ Tour package successfully updated!' : '✅ Tour package submitted for approval!') })
       setSubmitting(false)
-      
+
       setTimeout(() => { router.push(userRole === 'admin' ? '/admin' : '/vendor') }, 2000)
     }
   }
@@ -482,7 +475,7 @@ ${formattedFaqs}
   return (
     <div className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-        
+
         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-extrabold">{currentEditId ? 'Edit Tour Package' : 'Add New Tour Package'}</h1>
@@ -507,7 +500,7 @@ ${formattedFaqs}
                 <label className="block text-sm font-black text-amber-900 mb-2 flex items-center gap-2">
                   <span className="text-lg">🛡️</span> Admin Control: Assign this Tour to Vendor
                 </label>
-                
+
                 {vendorsList.length === 0 ? (
                   <p className="text-red-600 font-bold bg-white p-3 border border-red-200 rounded-lg">
                     ⚠️ Vendors fetch nahi ho paye. Kripya apna Supabase "profiles" table ka Row Level Security (RLS) check karein.
@@ -537,7 +530,7 @@ ${formattedFaqs}
 
             <div>
               <h2 className="text-xl font-bold text-gray-800 border-b pb-2 mb-6">1. Basic Info & SEO Metadata</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Package Name</label>
@@ -552,7 +545,6 @@ ${formattedFaqs}
                 </div>
               </div>
 
-              {/* 🌟 MODIFIED: MULTIPLE CATEGORY SELECTOR (BUTTONS/PILLS) */}
               <div className="mb-6 p-5 bg-indigo-50 border border-indigo-100 rounded-xl">
                 <label className="block text-sm font-bold text-indigo-900 mb-2">Tour Categorization (Themes)</label>
                 <div className="flex flex-wrap gap-2">
@@ -654,7 +646,7 @@ ${formattedFaqs}
                   <label className="block text-sm font-bold text-gray-700 mb-1">Short Description</label>
                   <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 focus:ring-2 focus:ring-blue-500" placeholder="e.g. October to March is the best time..." value={bestTimeToVisit} onChange={(e) => setBestTimeToVisit(e.target.value)} />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Select Recommended Months</label>
                   <div className="flex flex-wrap gap-2">
@@ -745,7 +737,7 @@ ${formattedFaqs}
                         <label className="block text-xs font-bold text-gray-600 mb-1">Day Title</label>
                         <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-white" placeholder="e.g. Arrival in Mumbai & Local Sightseeing" value={day.title} onChange={(e) => handleItineraryChange(index, 'title', e.target.value)} />
                       </div>
-                      
+
                       <div>
                         <label className="block text-xs font-bold text-gray-600 mb-2">Day Description</label>
                         <div className="bg-white rounded-lg border border-gray-300">
@@ -782,7 +774,7 @@ ${formattedFaqs}
                 {gallery.map((url, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <input type="url" className="flex-1 px-4 py-2 border rounded-lg outline-none bg-gray-50" placeholder="e.g. https://website.com/image.jpg" value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
-                    
+
                     <label className={`px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm transition-colors border ${uploadingGalleryIndex === index ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'}`}>
                       {uploadingGalleryIndex === index ? '⏳...' : '📁'}
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => handleGalleryUpload(e, index)} disabled={uploadingGalleryIndex === index} />
@@ -823,10 +815,10 @@ ${formattedFaqs}
             </div>
 
             <div className="pt-6 border-t mt-8">
-              
+
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-medium text-gray-500">
-                  {lastSaved ? `✅ Draft auto-saved at ${lastSaved.toLocaleTimeString()}` : 'Changes will auto-save in background...'}
+                  {lastSaved ? `✅ Checked: Ready to publish.` : 'Data is safe in your browser until submitted.'}
                 </span>
               </div>
 
@@ -861,7 +853,7 @@ ${formattedFaqs}
                 </button>
               </div>
             </div>
-            
+
           </form>
         </div>
       </div>
