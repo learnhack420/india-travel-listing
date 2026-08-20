@@ -23,7 +23,6 @@ function TourFormContent() {
 
   const [vendorsList, setVendorsList] = useState<any[]>([])
   const [tourThemesOptions, setTourThemesOptions] = useState<{value: string, label: string}[]>([])
-  const [submitAction, setSubmitAction] = useState('publish')
 
   const [currentEditId, setCurrentEditId] = useState<string | null>(editId)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
@@ -67,10 +66,6 @@ function TourFormContent() {
   const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null)
 
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
-
-  // 🌟 NEW REFS TO PREVENT RACE CONDITIONS & DUPLICATES
-  const submittingRef = useRef(false)
-  const latestDataRef = useRef<any>(null)
 
   const quillModules = {
     toolbar: [
@@ -309,43 +304,6 @@ ${formattedFaqs}
     }
   }
 
-  // 🌟 1. KEEP LATEST DATA IN REF (Taaki window close par fresh data use ho)
-  useEffect(() => {
-    latestDataRef.current = {
-      title,
-      vendorId,
-      currentEditId,
-      generate: () => generatePayload('draft')
-    }
-  })
-
-  // 🌟 2. FIXED AUTO-SAVE LOGIC (Only runs on Window Close / Tab Switch, blocked if Publish clicked)
-  useEffect(() => {
-    const handleCloseSave = () => {
-      const data = latestDataRef.current
-      // Agar user ne 'Publish' ya 'Draft' button click kiya hai, toh is auto-save ko block kar do
-      if (submittingRef.current || !data || !data.title.trim() || !data.vendorId) return
-
-      const dbPayload = data.generate()
-      if (data.currentEditId) {
-        supabase.from('listings').update({ ...dbPayload, vendor_id: data.vendorId }).eq('id', data.currentEditId).then()
-      } else {
-        supabase.from('listings').insert([{ ...dbPayload, vendor_id: data.vendorId, category: 'tour' }]).then()
-      }
-    }
-
-    const handleVisibilityChange = () => { if (document.visibilityState === 'hidden') handleCloseSave() }
-    const handleBeforeUnload = () => { handleCloseSave() }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('beforeunload', handleBeforeUnload)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, []) // Empty dependency array, safe because of latestDataRef
-
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
@@ -412,7 +370,8 @@ ${formattedFaqs}
     else { alert("Deleted successfully!"); router.push(userRole === 'admin' ? "/admin" : "/vendor") }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 🌟 FIXED HANDLESUBMIT: Ab button ka 'action' direct read hoga
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     if (!startLocation || destinations.length === 0) {
@@ -425,33 +384,40 @@ ${formattedFaqs}
       return
     }
 
-    // 🌟 STOP THE BACKGROUND AUTO-SAVE WHEN USER CLICKS SUBMIT/PUBLISH
+    // Capture explicit action value from the button clicked (draft or publish)
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement;
+    const actionClicked = submitter ? submitter.value : 'publish';
+
     setSubmitting(true)
-    submittingRef.current = true 
     setMessage({ type: '', text: '' })
 
     let finalStatus = "draft";
-    if (submitAction === "publish") {
+    if (actionClicked === "publish") {
       finalStatus = userRole === "admin" ? "approved" : "pending";
     }
 
     const dbPayload = generatePayload(finalStatus)
     let error;
+    let newId = currentEditId;
 
     if (currentEditId) {
       const res = await supabase.from('listings').update({ ...dbPayload, vendor_id: vendorId }).eq('id', currentEditId)
       error = res.error
     } else {
-      const res = await supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }])
+      const res = await supabase.from('listings').insert([{ ...dbPayload, vendor_id: vendorId, category: 'tour' }]).select('id').single()
       error = res.error
+      if (res.data?.id) {
+        newId = res.data.id;
+        setCurrentEditId(newId);
+        setLastSaved(new Date());
+      }
     }
 
     if (error) {
       setMessage({ type: 'error', text: error.code === '23505' ? 'Error: Yeh SEO Slug pehle se kisi aur listing me used hai. Kripya slug change karein.' : 'Error: ' + error.message })
       setSubmitting(false)
-      submittingRef.current = false // Re-enable background save on error
     } else {
-      if (!currentEditId && submitAction === 'publish') {
+      if (!currentEditId && actionClicked === 'publish') {
         fetch('/api/send-email', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -461,10 +427,16 @@ ${formattedFaqs}
         }).catch(err => console.error(err))
       }
 
-      setMessage({ type: 'success', text: submitAction === 'draft' ? '✅ Draft saved successfully!' : (currentEditId ? '✅ Tour package successfully updated!' : '✅ Tour package submitted for approval!') })
+      setMessage({ type: 'success', text: actionClicked === 'draft' ? '✅ Draft saved successfully!' : (currentEditId ? '✅ Tour package successfully updated!' : '✅ Tour package submitted for approval!') })
       setSubmitting(false)
 
-      setTimeout(() => { router.push(userRole === 'admin' ? '/admin' : '/vendor') }, 2000)
+      // Agar 'publish' hua hai toh dashboard par bhej do
+      if (actionClicked === 'publish') {
+        setTimeout(() => { router.push(userRole === 'admin' ? '/admin' : '/vendor') }, 2000)
+      } else {
+        // Draft save karne par wahi raho, URL me edit ID daal do
+        window.history.replaceState(null, '', `?edit=${newId}`);
+      }
     }
   }
 
@@ -836,7 +808,8 @@ ${formattedFaqs}
 
                 <button 
                   type="submit" 
-                  onClick={() => setSubmitAction("draft")}
+                  name="action"
+                  value="draft"
                   disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
                   className="w-full md:w-auto flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-2xl font-black text-lg shadow-sm transition-transform hover:scale-[1.01]"
                 >
@@ -845,7 +818,8 @@ ${formattedFaqs}
 
                 <button 
                   type="submit" 
-                  onClick={() => setSubmitAction("publish")}
+                  name="action"
+                  value="publish"
                   disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} 
                   className="w-full md:w-auto flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform hover:scale-[1.01] disabled:bg-blue-400"
                 >
