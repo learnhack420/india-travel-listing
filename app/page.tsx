@@ -43,8 +43,8 @@ const INDIAN_STATES = [
   { name: 'Kashmir', desc: 'Valleys, lakes & spiritual escapes, Dal Lake', img: 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?q=80&w=800&auto=format&fit=crop' },
   { name: 'Gujarat', desc: 'Temples, desert & heritage', img: 'https://i.ibb.co/whRPWNWJ/Rani-Ki-Vav-Patan-Gujarat-JM22.jpg' },
   { name: 'Rajasthan', desc: 'Forts, palaces & desert adventures', img: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?q=80&w=800&auto=format&fit=crop' },
-  { name: 'Uttarakhand', desc: 'Yoga, spirituality, trekking & Himalayas', img: 'https://i.ibb.co/pBx0h2bQ/Valley-of-flowers-national-park-Uttarakhand-India-03-edit.jpg' },
-  { name: 'Sikkim', desc: 'Glaciers, alpine meadows & Buddhist shrines', img: 'https://i.ibb.co/Mxgx0CJG/Buddha-statue-at-Buddha-Park-of-Ravangla-Sikkim-India-1.jpg' }
+  { name: 'Uttarakhand', desc: 'Yoga, spirituality, trekking & Himalayas', img: 'https://images.unsplash.com/photo-1pBx0h2bQ/Valley-of-flowers-national-park-Uttarakhand-India-03-edit.jpg' },
+  { name: 'Sikkim', desc: 'Glaciers, alpine meadows & Buddhist shrines', img: 'https://images.unsplash.com/photo-1Mxgx0CJG/Buddha-statue-at-Buddha-Park-of-Ravangla-Sikkim-India-1.jpg' }
 ];
 
 export default async function Home() {
@@ -80,11 +80,12 @@ export default async function Home() {
 
   const getListingUrl = (listing: any) => {
     const slug = listing.slug || listing.id
-    if (listing.category === 'tour') return `/tour/${slug}`
-    if (listing.category === 'hotel') return `/hotel/${slug}`
-    if (listing.category === 'cab') return `/cabs/${slug}`
-    if (listing.category === 'destination') return `/places/${slug}` 
-    if (listing.category === 'blog') return `/${slug}`            
+    const cat = listing.category?.toLowerCase().trim() || ''
+    if (cat === 'tour' || cat.includes('tour') || cat.includes('package')) return `/tour/${slug}`
+    if (cat === 'hotel') return `/hotel/${slug}`
+    if (cat === 'cab') return `/cabs/${slug}`
+    if (cat === 'destination' || cat.includes('place')) return `/places/${slug}` 
+    if (cat === 'blog') return `/${slug}`            
     return `/listing/${slug}`
   }
 
@@ -101,24 +102,117 @@ export default async function Home() {
     return '/ITO LOGO.png'
   }
 
-  const tours = listings?.filter((l) => l.category === 'tour') || []
-  const destinations = listings?.filter((l) => l.category === 'destination') || []
-  const hotels = listings?.filter((l) => l.category === 'hotel') || []
-  const cabs = listings?.filter((l) => l.category === 'cab') || []
-  const blogs = listings?.filter((l) => l.category === 'blog') || []
+  const tours = listings?.filter((l) => {
+    const cat = l.category?.toLowerCase().trim() || '';
+    return cat === 'tour' || cat.includes('tour') || cat.includes('package');
+  }) || []
+  const destinations = listings?.filter((l) => {
+    const cat = l.category?.toLowerCase().trim() || '';
+    return cat === 'destination' || cat.includes('place');
+  }) || []
+  const hotels = listings?.filter((l) => l.category?.toLowerCase().trim() === 'hotel') || []
+  const cabs = listings?.filter((l) => l.category?.toLowerCase().trim() === 'cab') || []
+  const blogs = listings?.filter((l) => l.category?.toLowerCase().trim() === 'blog') || []
 
-  const activeStates = INDIAN_STATES.map(state => {
-    const stateListings = listings?.filter(l => l.location?.toLowerCase().includes(state.name.toLowerCase())) || [];
-    const tourCount = stateListings.filter(l => l.category === 'tour').length;
-    const placeCount = stateListings.filter(l => l.category === 'destination').length;
+  // 🌟 SUPER-SMART KEYWORD & MULTI-STATE MAPPER
+  const stateCountsMap: Record<string, { tourCount: number; placeCount: number; total: number; sampleImage: string }> = {};
+
+  // Is list mein saare keywords, common cities, aur purane naam (like Pondicherry) added hain
+  const stateMapping = [
+    { id: 'Andaman & Nicobar', keywords: ['andaman', 'nicobar', 'port blair', 'havelock'] },
+    { id: 'Andhra Pradesh', keywords: ['andhra pradesh', 'tirupati', 'visakhapatnam', 'vizag'] },
+    { id: 'Arunachal Pradesh', keywords: ['arunachal', 'tawang'] },
+    { id: 'Assam', keywords: ['assam', 'guwahati', 'kaziranga'] },
+    { id: 'Bihar', keywords: ['bihar', 'bodh gaya', 'patna'] },
+    { id: 'Chandigarh', keywords: ['chandigarh'] },
+    { id: 'Chhattisgarh', keywords: ['chhattisgarh', 'raipur'] },
+    { id: 'Delhi', keywords: ['delhi', 'new delhi'] },
+    { id: 'Goa', keywords: ['goa', 'panaji', 'baga', 'calangute', 'candolim'] },
+    { id: 'Gujarat', keywords: ['gujarat', 'ahmedabad', 'somnath', 'dwarka', 'kutch', 'surat'] },
+    { id: 'Haryana', keywords: ['haryana', 'gurgaon', 'gurugram'] },
+    { id: 'Himachal Pradesh', keywords: ['himachal', 'shimla', 'manali', 'kasol', 'dharamshala', 'dalhousie', 'spiti'] },
+    { id: 'Jharkhand', keywords: ['jharkhand', 'ranchi'] },
+    { id: 'Karnataka', keywords: ['karnataka', 'bangalore', 'bengaluru', 'mysore', 'coorg', 'hampi', 'gokarna', 'mangalore'] },
+    { id: 'Kerala', keywords: ['kerala', 'munnar', 'alleppey', 'kochi', 'wayanad', 'kovalam', 'trivandrum'] },
+    { id: 'Ladakh', keywords: ['ladakh', 'leh', 'pangong', 'nubra'] },
+    { id: 'Lakshadweep', keywords: ['lakshadweep'] },
+    { id: 'Madhya Pradesh', keywords: ['madhya pradesh', 'bhopal', 'indore', 'ujjain', 'gwalior', 'khajuraho', 'kanha'] },
+    { id: 'Maharashtra', keywords: ['maharashtra', 'mumbai', 'pune', 'lonavala', 'shirdi', 'mahabaleshwar', 'nashik', 'aurangabad', 'nagpur', 'panchgani'] },
+    { id: 'Manipur', keywords: ['manipur', 'imphal'] },
+    { id: 'Meghalaya', keywords: ['meghalaya', 'shillong', 'cherrapunji', 'dawki'] },
+    { id: 'Mizoram', keywords: ['mizoram', 'aizawl'] },
+    { id: 'Nagaland', keywords: ['nagaland', 'kohima'] },
+    { id: 'Odisha', keywords: ['odisha', 'orissa', 'bhubaneswar', 'puri', 'konark'] },
+    { id: 'Puducherry', keywords: ['puducherry', 'pondicherry', 'pondi'] }, // Pondicherry added here!
+    { id: 'Punjab', keywords: ['punjab', 'amritsar', 'ludhiana', 'jalandhar'] },
+    { id: 'Rajasthan', keywords: ['rajasthan', 'jaipur', 'udaipur', 'jodhpur', 'jaisalmer', 'pushkar', 'bikaner', 'mount abu'] },
+    { id: 'Sikkim', keywords: ['sikkim', 'gangtok', 'pelling', 'lachung'] },
+    { id: 'Tamil Nadu', keywords: ['tamil nadu', 'chennai', 'ooty', 'kodaikanal', 'madurai', 'coimbatore', 'rameshwaram', 'kanyakumari', 'mahabalipuram'] },
+    { id: 'Telangana', keywords: ['telangana', 'hyderabad'] },
+    { id: 'Tripura', keywords: ['tripura', 'agartala'] },
+    { id: 'Uttar Pradesh', keywords: ['uttar pradesh', 'agra', 'varanasi', 'lucknow', 'mathura', 'vrindavan', 'ayodhya', 'prayagraj'] },
+    { id: 'Uttarakhand', keywords: ['uttarakhand', 'rishikesh', 'nainital', 'mussoorie', 'haridwar', 'dehradun', 'kedarnath', 'badrinath', 'auli', 'jim corbett'] },
+    { id: 'West Bengal', keywords: ['west bengal', 'kolkata', 'darjeeling', 'siliguri', 'sunderbans'] },
+    { id: 'Kashmir', keywords: ['kashmir', 'jammu', 'srinagar', 'gulmarg', 'pahalgam', 'sonamarg', 'vaishno devi'] }
+  ];
+
+  listings?.forEach(l => {
+    const searchString = `${l.title || ''} ${l.location || ''}`.toLowerCase();
+    const matchedStateIds = new Set<string>();
+
+    // Agar title/location mein kisi bhi state ka keyword (jaise pondicherry, agra, chennai) hai, toh usko us state mein assign kar do
+    stateMapping.forEach(stateObj => {
+      if (stateObj.keywords.some(kw => searchString.includes(kw))) {
+        matchedStateIds.add(stateObj.id);
+      }
+    });
+
+    // Ab is tour/place ko unn SABHI states mein daal do jo match hue hain (e.g. Delhi AND UP dono mein)
+    matchedStateIds.forEach(stateId => {
+      if (!stateCountsMap[stateId]) {
+        const listingImg = getThumbnail(l);
+        stateCountsMap[stateId] = { 
+          tourCount: 0, 
+          placeCount: 0, 
+          total: 0, 
+          sampleImage: listingImg !== '/ITO LOGO.png' ? listingImg : '' 
+        };
+      }
+      
+      const cat = l.category?.toLowerCase().trim() || '';
+      
+      if (cat === 'tour' || cat.includes('tour') || cat.includes('package')) {
+        stateCountsMap[stateId].tourCount += 1;
+        stateCountsMap[stateId].total += 1;
+      } else if (cat === 'destination' || cat.includes('place')) {
+        stateCountsMap[stateId].placeCount += 1;
+        stateCountsMap[stateId].total += 1;
+      }
+
+      if (!stateCountsMap[stateId].sampleImage || stateCountsMap[stateId].sampleImage === '/ITO LOGO.png') {
+        const listingImg = getThumbnail(l);
+        if (listingImg && listingImg !== '/ITO LOGO.png') {
+          stateCountsMap[stateId].sampleImage = listingImg;
+        }
+      }
+    });
+  });
+
+  const activeStates = Object.keys(stateCountsMap).map(stateName => {
+    const existingMeta = INDIAN_STATES.find(s => s.name.toLowerCase() === stateName.toLowerCase());
+    const finalImage = stateCountsMap[stateName].sampleImage || existingMeta?.img || 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?q=80&w=800&auto=format&fit=crop';
 
     return {
-      ...state,
-      tourCount,
-      placeCount,
-      total: tourCount + placeCount
+      name: stateName,
+      desc: existingMeta?.desc || `Explore amazing tours, heritage places & attractions in ${stateName}.`,
+      img: finalImage,
+      tourCount: stateCountsMap[stateName].tourCount,
+      placeCount: stateCountsMap[stateName].placeCount,
+      total: stateCountsMap[stateName].total
     };
-  }).filter(state => state.total > 0); 
+  })
+  .filter(state => state.total > 0)
+  .sort((a, b) => b.total - a.total);
 
   const sections = [
     { titleStart: "Top Tour", titleHighlight: "Packages", items: tours, viewAllLink: "/tours", icon: "🗺️", badge: "Most Popular" },
@@ -327,7 +421,7 @@ export default async function Home() {
                   const detailUrl = getListingUrl(listing)
                   const imageUrl = getThumbnail(listing)
                   const excerpt = listing.metadata?.shortDescription || stripHtml(listing.description);
-                  const isInfoContent = listing.category === 'destination' || listing.category === 'blog';
+                  const isInfoContent = listing.category?.toLowerCase() === 'destination' || listing.category?.toLowerCase() === 'blog';
 
                   return (
                     <Link href={detailUrl} key={listing.id} className="bg-white rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-1.5 hover:border-blue-200 transition-all duration-500 flex flex-col group cursor-pointer">
@@ -342,7 +436,7 @@ export default async function Home() {
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-500"></div>
                         
                         <span className="absolute top-5 left-5 text-[10px] font-black text-slate-900 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full uppercase tracking-widest shadow-[0_4px_12px_rgba(0,0,0,0.1)] border border-white/50">
-                          {listing.category === 'blog' && listing.metadata?.blogCategory ? listing.metadata.blogCategory : listing.category === 'destination' ? 'Tourist Place' : listing.category}
+                          {listing.category?.toLowerCase() === 'blog' && listing.metadata?.blogCategory ? listing.metadata.blogCategory : listing.category?.toLowerCase() === 'destination' ? 'Tourist Place' : listing.category}
                         </span>
                         
                         <span className="absolute bottom-5 left-5 text-white text-sm font-bold flex items-center gap-1.5 drop-shadow-md">
