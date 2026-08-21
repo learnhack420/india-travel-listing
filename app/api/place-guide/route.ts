@@ -4,18 +4,21 @@ import { createClient } from '@supabase/supabase-js';
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { placeId, targetCity, needFaqs } = body;
+    // 🌟 ADDED 'placeTitle' here to get exact place name for headings
+    const { placeId, targetCity, needFaqs, placeTitle } = body; 
+    const destination = placeTitle || targetCity; // Prefer placeTitle, fallback to targetCity
     
     const apiKey = process.env.GEMINI_API_KEY;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseKey = serviceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY is missing" }, { status: 500 });
-    if (!supabaseUrl || !supabaseKey) return NextResponse.json({ error: "Supabase credentials missing" }, { status: 500 });
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: "Supabase credentials missing on live server" }, { status: 500 });
+    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 🌟 1. CHECK DEDICATED CACHE TABLE FIRST
     if (placeId) {
       try {
         const { data: cachedRow } = await supabase
@@ -25,17 +28,18 @@ export async function POST(req: Request) {
           .single();
 
         if (cachedRow?.data?.insights) {
-          console.log(`⚡ Using DEDICATED Cache Table for place ID: ${placeId}`);
+          console.log(`⚡ Data found in NEW Table for: ${destination}`);
           return NextResponse.json(cachedRow.data);
         }
       } catch (dbErr) {
-        // Table khali ho ya error ho, toh fresh fetch karenge
+        // Data nahi mila, Gemini se fresh fetch karenge
       }
     }
 
-    console.log(`⏳ Fetching fresh AI Data from Gemini for: ${targetCity}...`);
+    console.log(`⏳ Fetching STRICTLY FRESH AI Data from Gemini for: ${destination}...`);
 
-    // 🌟 2. FETCH GEMINI DATA
+    if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY is missing" }, { status: 500 });
+
     const modelsReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
     const modelsData = await modelsReq.json();
     let selectedModel = "models/gemini-2.5-flash"; 
@@ -44,10 +48,15 @@ export async function POST(req: Request) {
         if (validModels.length > 0) selectedModel = validModels[0].name;
     }
 
-    const prompt = `Act as an expert local travel guide for ${targetCity}, India.
-    Provide practical and engaging local recommendations in a professional English tone.
+    // 🌟 STRICT PROMPT FOR DYNAMIC SENTENCE HEADINGS
+    const prompt = `Act as an expert local travel guide for ${destination}, India.
+    Provide practical and engaging local recommendations in a highly professional pure English tone.
     Respond in strict JSON format ONLY with:
-    1. "insights": EXACTLY 5 objects (Famous Food, Hotels, Shopping, Hidden Gems, Parking). Keys: "title", "options" (array of up to 5 short strings), "icon" (emoji).
+    1. "insights": EXACTLY 6 objects in this order (Famous Food, Hotels, Shopping, Hidden Gems, Parking, Activity). 
+       Each object MUST have:
+       - "title": A complete, engaging sentence heading including the place name (e.g., "Best Shopping Spots near ${destination}", "Parking Options around ${destination}", "Must-Try Food near ${destination}"). Do NOT use boring 1-2 word generic titles.
+       - "options": An array of EXACTLY 4 to 5 short strings (bullet points). Do NOT write a paragraph.
+       - "icon": A relevant emoji.
     ${needFaqs ? `2. "faqs": EXACTLY 5 FAQs (keys: "question", "answer").` : ''}
     Ensure ONLY a valid JSON object is returned without markdown.`;
 
@@ -63,23 +72,14 @@ export async function POST(req: Request) {
     let generatedText = rawData.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const finalData = JSON.parse(generatedText);
 
-    // 🌟 3. SAVE TO NEW DEDICATED CACHE TABLE
+    // 🌟 SAVE FRESH FORMATTED DATA TO NEW TABLE
     if (placeId) {
       try {
-        const { error: insertErr } = await supabase
+        await supabase
           .from('ai_guide_cache')
-          .upsert({ 
-            place_id: placeId, 
-            data: finalData 
-          }, { onConflict: 'place_id' }); // Upsert taaki duplicate na ho
-
-        if (insertErr) {
-          console.error("❌ CACHE INSERT ERROR:", insertErr);
-        } else {
-          console.log("✅ SUCCESS! AI Data saved to ai_guide_cache table for:", targetCity);
-        }
+          .upsert({ place_id: placeId, data: finalData }, { onConflict: 'place_id' });
       } catch (saveErr) {
-        console.error("❌ CRITICAL CACHE ERROR:", saveErr);
+        console.error("❌ Failed to save to cache:", saveErr);
       }
     }
 
