@@ -5,6 +5,9 @@ import InteractiveIndiaMap from './components/InteractiveIndiaMap'
 import VendorInfoCard from './components/VendorInfoCard' 
 import VendorDirectory from './components/VendorDirectory' 
 
+// 🌟 FIX: Yeh line Next.js ko force karegi ki wo data ko cache na kare aur hamesha fresh data fetch kare (0 seconds cache).
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'India Tour Operators - Best Tour Packages, Cabs & Hotels',
   description: 'Book verified India tour packages, outstation cabs, and luxury hotels with top-rated local tour operators across top destinations at the best prices.',
@@ -117,7 +120,6 @@ export default async function Home() {
     };
   }).filter(state => state.total > 0); 
 
-  // 🌟 NEW: Split titles into two parts for the Premium Two-Color Highlight
   const sections = [
     { titleStart: "Top Tour", titleHighlight: "Packages", items: tours, viewAllLink: "/tours", icon: "🗺️", badge: "Most Popular" },
     { titleStart: "Trending", titleHighlight: "Destinations", items: destinations, viewAllLink: "/places", icon: "📍", badge: "Must Visit" },
@@ -206,7 +208,7 @@ export default async function Home() {
           <div className="max-w-6xl mx-auto px-4 md:px-8 mb-8 text-center md:text-left">
             <span className="text-amber-500 font-black tracking-widest uppercase text-sm mb-2 block">Our Newest Additions</span>
             <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
-              Newly Registered <span className="text-orange-600">Vendors</span>
+              Newly Registered <span className="text-[#ff5a00]">Vendors</span>
             </h2>
             <p className="text-slate-500 mt-2 text-lg font-medium">Swipe left to discover the latest local travel experts who joined us.</p>
           </div>
@@ -229,7 +231,7 @@ export default async function Home() {
           <div className="mb-10 text-center md:text-left">
             <span className="text-emerald-500 font-black tracking-widest uppercase text-sm mb-2 block">Find Local Experts</span>
             <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
-              Vendors by <span className="text-orange-600">State</span>
+              Vendors by <span className="text-[#ff5a00]">State</span>
             </h2>
             <p className="text-slate-500 mt-3 text-lg font-medium max-w-2xl mx-auto md:mx-0">
               Click on any state card below to discover verified travel agencies and cab operators in that region.
@@ -246,7 +248,7 @@ export default async function Home() {
         <section className="max-w-6xl mx-auto px-4 md:px-8 mb-20 pt-4">
           <div className="mb-10 text-center md:text-left">
             <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
-              Explore Packages by <span className="text-orange-600">Destination</span>
+              Explore Packages by <span className="text-[#ff5a00]">Destination</span>
             </h2>
             <p className="text-slate-500 mt-3 text-lg font-medium">
               Pick a state and jump straight to its live, bookable packages and places.
@@ -306,11 +308,10 @@ export default async function Home() {
                       {section.badge}
                     </span>
                   </div>
-                  {/* 🌟 HIGHLIGHTING THE LAST WORD IN ORANGE */}
                   <h2 className="text-3xl md:text-5xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
                     <span className="text-4xl md:text-5xl drop-shadow-sm">{section.icon}</span> 
                     <span>
-                      {section.titleStart} <span className="text-orange-600">{section.titleHighlight}</span>
+                      {section.titleStart} <span className="text-[#ff5a00]">{section.titleHighlight}</span>
                     </span>
                   </h2>
                 </div>
@@ -399,7 +400,7 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <span className="text-amber-400 font-black tracking-widest uppercase text-sm mb-2 block">Our Community</span>
-            <h2 className="text-4xl md:text-5xl font-black mb-4">Loved by <span className="text-orange-500">Travelers</span></h2>
+            <h2 className="text-4xl md:text-5xl font-black mb-4">Loved by <span className="text-[#ff5a00]">Travelers</span></h2>
             <p className="text-slate-400 font-medium text-lg max-w-2xl mx-auto">Real experiences from travelers who explored India with our trusted local operators.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -427,23 +428,23 @@ export default async function Home() {
         <div className="max-w-5xl mx-auto">
           <div className="mb-24">
             <div className="text-center max-w-4xl mx-auto mb-16">
-              <span className="w-12 h-1 bg-amber-400 rounded-full inline-block mb-6"></span>
+              <span className="w-12 h-1 bg-[#ffb300] rounded-full inline-block mb-6"></span>
               <h2 className="text-3xl md:text-5xl font-black text-slate-900 mb-8 tracking-tight leading-tight">
-                Why Choose <span className="text-orange-600">India Tour Operators?</span>
+                Why Choose <span className="text-[#ff5a00]">India Tour Operators?</span>
               </h2>
               <div className="space-y-6 text-slate-600 text-lg leading-relaxed font-medium text-left md:text-center">
                 <p>
-                  Welcome to <strong className="text-slate-900 font-black">India Tour Operators</strong>, the leading aggregator platform connecting travelers with verified, top-rated local travel agencies across India. Whether you are looking for customized <strong className="text-blue-600 font-black">tour packages</strong>, reliable <strong className="text-blue-600 font-black">outstation cab booking</strong> services, or luxurious yet affordable <strong className="text-blue-600 font-black">hotel bookings</strong>, we have everything organized in one place.
+                  Welcome to <strong className="font-black"><span className="text-[#ff5a00]">India</span> <span className="text-blue-500">Tour</span> <span className="text-[#00c853]">Operators</span></strong>, the leading aggregator platform connecting travelers with verified, top-rated local travel agencies across India. Whether you are looking for customized <strong className="text-blue-600 font-black">tour packages</strong>, reliable <strong className="text-blue-600 font-black">outstation cab booking</strong> services, or luxurious yet affordable <strong className="text-blue-600 font-black">hotel bookings</strong>, we have everything organized in one place.
                 </p>
                 <p>
-                  Our platform eliminates the middleman, ensuring that you get the most authentic travel experiences directly from local experts at highly competitive prices. Explore detailed <strong className="text-slate-800 font-bold border-b-2 border-amber-300">tourist place guides</strong>, read our expert <strong className="text-slate-800 font-bold border-b-2 border-amber-300">travel blogs</strong>, and plan your next vacation with complete peace of mind.
+                  Our platform eliminates the middleman, ensuring that you get the most authentic travel experiences directly from local experts at highly competitive prices. Explore detailed <strong className="text-slate-800 font-bold border-b-[3px] border-[#ffb300]">tourist place guides</strong>, read our expert <strong className="text-slate-800 font-bold border-b-[3px] border-[#ffb300]">travel blogs</strong>, and plan your next vacation with complete peace of mind.
                 </p>
               </div>
             </div>
           </div>
 
           <div>
-            <h2 className="text-3xl font-black text-slate-900 mb-10 text-center tracking-tight">Frequently Asked <span className="text-orange-600">Questions</span></h2>
+            <h2 className="text-3xl font-black text-slate-900 mb-10 text-center tracking-tight">Frequently Asked <span className="text-[#ff5a00]">Questions</span></h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {homeFaqs.map((faq, i) => (
                 <div key={i} className="bg-[#F8FAFC] p-8 rounded-[2rem] border border-slate-200 hover:border-blue-300 transition-colors shadow-sm">
