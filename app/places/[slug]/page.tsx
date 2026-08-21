@@ -6,7 +6,6 @@ import FloatingContact from '../../components/FloatingContact'
 import RelatedPlaceSections from '../../components/RelatedPlaceSections'
 import AITouristGuide from '../../components/AITouristGuide'
 
-
 export const revalidate = 60 
 
 const cleanText = (htmlString: string) => {
@@ -89,9 +88,12 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
   const meta = place.metadata || {}
   const image = place.image || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
   const galleryUrls = meta.gallery && meta.gallery.length > 0 ? meta.gallery : []
-  const faqs = meta.faqItems || []
+  
+  // 🌟 FIX FOR SEO: Combine Manual FAQs and AI Generated FAQs for Google Schema
+  const manualFaqs = meta.faqItems || []
+  const aiFaqs = meta.ai_guide?.faqs || []
+  const allFaqsForSEO = [...manualFaqs, ...aiFaqs]
 
-  // 🌟 SEO UPGRADE 2: JSON-LD Structured Data
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
 
   // 1. Breadcrumb Schema
@@ -119,11 +121,11 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     }
   };
 
-  // 3. FAQ Schema
-  const faqSchema = faqs.length > 0 ? {
+  // 🌟 3. FAQ Schema (Now includes AI Generated FAQs!)
+  const faqSchema = allFaqsForSEO.length > 0 ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": faqs.map((faq: any) => ({
+    "mainEntity": allFaqsForSEO.map((faq: any) => ({
       "@type": "Question",
       "name": faq.question,
       "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
@@ -263,20 +265,20 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
             </section>
           )}
 
-          {/* AI SMART GUIDE & MAP (Passes placeId for Database Caching) */}
+          {/* 🌟 AI SMART GUIDE & MAP 🌟 */}
           <AITouristGuide 
             placeId={place.id}
             targetCity={targetCity} 
-            hasExistingFaqs={faqs.length > 0} 
+            hasExistingFaqs={manualFaqs.length > 0} 
             placeTitle={place.title}
           />
 
-          {/* Existing FAQs */}
-          {faqs.length > 0 && (
+          {/* Existing Manual FAQs */}
+          {manualFaqs.length > 0 && (
             <section className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
               <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2"><span>❓</span> Frequently Asked Questions</h2>
               <div className="space-y-4">
-                {faqs.map((faq: any, idx: number) => (
+                {manualFaqs.map((faq: any, idx: number) => (
                   <div key={idx} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 shadow-sm">
                     <h3 className="font-bold text-slate-900 text-lg mb-2">Q: {faq.question}</h3>
                     <p className="text-slate-600 text-lg leading-relaxed whitespace-pre-line">A: {faq.answer}</p>

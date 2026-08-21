@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-
-
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -16,7 +14,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "GEMINI_API_KEY is missing" }, { status: 500 });
     }
 
-    // Safe Supabase initialization for Edge/Cloudflare
     let supabase = null;
     if (supabaseUrl && supabaseKey) {
       supabase = createClient(supabaseUrl, supabaseKey);
@@ -32,15 +29,12 @@ export async function POST(req: Request) {
           .single();
 
         if (existingPlace?.metadata?.ai_guide) {
-          console.log(`⚡ Using Cached AI Data for place ID: ${placeId}`);
           return NextResponse.json(existingPlace.metadata.ai_guide);
         }
       } catch (dbErr) {
         console.log("Cache fetch skipped/failed, proceeding to AI generation.");
       }
     }
-
-    console.log(`⏳ Fetching fresh AI Data for: ${targetCity}...`);
 
     // 🌟 2. Fetch Gemini Models List
     const modelsReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
@@ -59,13 +53,24 @@ export async function POST(req: Request) {
         }
     }
 
-    // 🌟 3. Generate Content from Gemini
+    // 🌟 3. Generate Content from Gemini (UPDATED FOR LIST OPTIONS & HEADINGS)
     const prompt = `Act as an expert local travel guide for ${targetCity}, India.
-    Provide the following information in strict JSON format ONLY. 
-    1. "food": 2-3 sentences about what local food a tourist MUST eat here (in English).
-    2. "shopping": 2-3 sentences about what to shop and the best local markets (in English).
-    3. "famous": 2-3 sentences about what this city/place is most famous for (in English).
-    ${needFaqs ? `4. "faqs": Provide EXACTLY 5 frequently asked questions and answers for a tourist visiting ${targetCity}. Format as an array of objects with "question" and "answer" keys.` : ''}
+    Provide practical and engaging local recommendations. Use a highly professional and engaging pure English tone.
+    
+    Respond in strict JSON format ONLY with the following keys:
+    1. "insights": An array of EXACTLY 5 objects in this exact order:
+       - Famous Food & Local Eateries
+       - Best Hotels & Stays
+       - Local Shopping Spots & Markets
+       - Hidden Gems & Offbeat Places
+       - Parking Lots & Parking Tips
+       
+       Each object MUST have these 3 keys: 
+       - "title": A proper professional heading (e.g., "Famous Food in ${targetCity}", "Shopping in ${targetCity}", "Parking Lots in ${targetCity}").
+       - "options": An array of strings representing a list. Provide a MAXIMUM of 5 options/tips per category. Each option should be a short, informative sentence.
+       - "icon": A relevant emoji.
+       
+    ${needFaqs ? `2. "faqs": Provide EXACTLY 5 frequently asked questions and answers for a tourist visiting ${targetCity}. Format as an array of objects with "question" and "answer" keys strictly in English.` : ''}
     
     Ensure the response is ONLY a valid JSON object. Do not add markdown like \`\`\`json.`;
 
@@ -88,7 +93,7 @@ export async function POST(req: Request) {
 
     const finalData = JSON.parse(generatedText);
 
-    // 🌟 4. Save to Database Cache (Non-blocking)
+    // 🌟 4. Save to Database Cache
     if (placeId && supabase) {
       try {
         const { data: currentPlace } = await supabase
@@ -99,7 +104,7 @@ export async function POST(req: Request) {
 
         const updatedMetadata = {
           ...(currentPlace?.metadata || {}),
-          ai_guide: finalData
+          ai_guide: finalData 
         };
 
         await supabase
@@ -114,7 +119,7 @@ export async function POST(req: Request) {
     return NextResponse.json(finalData);
 
   } catch (error: any) {
-    console.error("❌ Cloudflare Worker Route Error:", error);
+    console.error("❌ API Route Error:", error);
     return NextResponse.json({ error: error.message || "Failed to generate AI guide" }, { status: 500 });
   }
 }
