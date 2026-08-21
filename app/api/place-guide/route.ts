@@ -10,118 +10,83 @@ export async function POST(req: Request) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_API_KEY is missing" }, { status: 500 });
-    }
+    if (!apiKey) return NextResponse.json({ error: "GEMINI_API_KEY is missing" }, { status: 500 });
+    if (!supabaseUrl || !supabaseKey) return NextResponse.json({ error: "Supabase credentials missing" }, { status: 500 });
 
-    let supabase = null;
-    if (supabaseUrl && supabaseKey) {
-      supabase = createClient(supabaseUrl, supabaseKey);
-    }
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 🌟 FIX 1: Check Database Cache First, BUT strictly check for the NEW 'insights' format
-    if (placeId && supabase) {
+    // 🌟 1. CHECK DEDICATED CACHE TABLE FIRST
+    if (placeId) {
       try {
-        const { data: existingPlace } = await supabase
-          .from('listings')
-          .select('metadata')
-          .eq('id', placeId)
+        const { data: cachedRow } = await supabase
+          .from('ai_guide_cache')
+          .select('data')
+          .eq('place_id', placeId)
           .single();
 
-        // Agar cache mein 'insights' array hai tabhi use karein, warna naya generate karein
-        if (existingPlace?.metadata?.ai_guide?.insights) {
-          console.log(`⚡ Using Cached AI Data for place ID: ${placeId}`);
-          return NextResponse.json(existingPlace.metadata.ai_guide);
+        if (cachedRow?.data?.insights) {
+          console.log(`⚡ Using DEDICATED Cache Table for place ID: ${placeId}`);
+          return NextResponse.json(cachedRow.data);
         }
       } catch (dbErr) {
-        console.log("Cache fetch skipped/failed, proceeding to AI generation.");
+        // Table khali ho ya error ho, toh fresh fetch karenge
       }
     }
 
-    console.log(`⏳ Fetching fresh AI Data for: ${targetCity}...`);
+    console.log(`⏳ Fetching fresh AI Data from Gemini for: ${targetCity}...`);
 
+    // 🌟 2. FETCH GEMINI DATA
     const modelsReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
     const modelsData = await modelsReq.json();
-    
     let selectedModel = "models/gemini-2.5-flash"; 
-    if (modelsData && modelsData.models) {
-        const validModels = modelsData.models.filter((m: any) => 
-            m.supportedGenerationMethods && 
-            m.supportedGenerationMethods.includes("generateContent") &&
-            m.name.includes("gemini")
-        );
-        if (validModels.length > 0) {
-            const flashModel = validModels.find((m: any) => m.name.includes("flash"));
-            selectedModel = flashModel ? flashModel.name : validModels[0].name;
-        }
+    if (modelsData?.models) {
+        const validModels = modelsData.models.filter((m: any) => m.name.includes("gemini") && m.name.includes("flash"));
+        if (validModels.length > 0) selectedModel = validModels[0].name;
     }
 
     const prompt = `Act as an expert local travel guide for ${targetCity}, India.
-    Provide practical and engaging local recommendations. Use a highly professional and engaging pure English tone.
-    
-    Respond in strict JSON format ONLY with the following keys:
-    1. "insights": An array of EXACTLY 5 objects in this exact order:
-       - Famous Food & Local Eateries
-       - Best Hotels & Stays
-       - Local Shopping Spots & Markets
-       - Hidden Gems & Offbeat Places
-       - Parking Lots & Parking Tips
-       
-       Each object MUST have these 3 keys: 
-       - "title": A proper professional heading (e.g., "Famous Food near ${targetCity}").
-       - "options": An array of strings representing a list. Provide a MAXIMUM of 5 options/tips per category. Each option should be a short, informative sentence.
-       - "icon": A relevant emoji.
-       
-    ${needFaqs ? `2. "faqs": Provide EXACTLY 5 frequently asked questions and answers for a tourist visiting ${targetCity}. Format as an array of objects with "question" and "answer" keys strictly in English.` : ''}
-    
-    Ensure the response is ONLY a valid JSON object. Do not add markdown like \`\`\`json.`;
+    Provide practical and engaging local recommendations in a professional English tone.
+    Respond in strict JSON format ONLY with:
+    1. "insights": EXACTLY 5 objects (Famous Food, Hotels, Shopping, Hidden Gems, Parking). Keys: "title", "options" (array of up to 5 short strings), "icon" (emoji).
+    ${needFaqs ? `2. "faqs": EXACTLY 5 FAQs (keys: "question", "answer").` : ''}
+    Ensure ONLY a valid JSON object is returned without markdown.`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
 
     const rawData = await response.json();
-    
-    if (rawData.error) {
-      return NextResponse.json({ error: rawData.error.message }, { status: 500 });
-    }
+    if (rawData.error) throw new Error(rawData.error.message);
 
-    let generatedText = rawData.candidates[0].content.parts[0].text;
-    generatedText = generatedText.replace(/```json/gi, '').replace(/```/g, '').trim();
-
+    let generatedText = rawData.candidates[0].content.parts[0].text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const finalData = JSON.parse(generatedText);
 
-    // 🌟 4. Save to Database Cache
-    if (placeId && supabase) {
+    // 🌟 3. SAVE TO NEW DEDICATED CACHE TABLE
+    if (placeId) {
       try {
-        const { data: currentPlace } = await supabase
-          .from('listings')
-          .select('metadata')
-          .eq('id', placeId)
-          .single();
+        const { error: insertErr } = await supabase
+          .from('ai_guide_cache')
+          .upsert({ 
+            place_id: placeId, 
+            data: finalData 
+          }, { onConflict: 'place_id' }); // Upsert taaki duplicate na ho
 
-        const updatedMetadata = {
-          ...(currentPlace?.metadata || {}),
-          ai_guide: finalData 
-        };
-
-        await supabase
-          .from('listings')
-          .update({ metadata: updatedMetadata })
-          .eq('id', placeId);
+        if (insertErr) {
+          console.error("❌ CACHE INSERT ERROR:", insertErr);
+        } else {
+          console.log("✅ SUCCESS! AI Data saved to ai_guide_cache table for:", targetCity);
+        }
       } catch (saveErr) {
-        console.error("Failed to cache to DB:", saveErr);
+        console.error("❌ CRITICAL CACHE ERROR:", saveErr);
       }
     }
 
     return NextResponse.json(finalData);
 
   } catch (error: any) {
-    console.error("❌ API Route Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to generate AI guide" }, { status: 500 });
+    console.error("❌ API Error:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
