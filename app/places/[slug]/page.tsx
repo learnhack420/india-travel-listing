@@ -89,9 +89,15 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
   const image = place.image || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
   const galleryUrls = meta.gallery && meta.gallery.length > 0 ? meta.gallery : []
   
-  // 🌟 FIX FOR SEO: Combine Manual FAQs and AI Generated FAQs for Google Schema
+  // 🌟 FIX FOR SEO: Fetch AI FAQs from the NEW 'ai_guide_cache' table
+  const { data: cachedGuide } = await supabase
+    .from('ai_guide_cache')
+    .select('data')
+    .eq('place_id', place.id)
+    .single();
+
   const manualFaqs = meta.faqItems || []
-  const aiFaqs = meta.ai_guide?.faqs || []
+  const aiFaqs = cachedGuide?.data?.faqs || meta.ai_guide?.faqs || [] // Fallback to old format just in case
   const allFaqsForSEO = [...manualFaqs, ...aiFaqs]
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
@@ -121,7 +127,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     }
   };
 
-  // 🌟 3. FAQ Schema (Now includes AI Generated FAQs!)
+  // 🌟 3. FAQ Schema (Now safely includes AI Generated FAQs from new table!)
   const faqSchema = allFaqsForSEO.length > 0 ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
