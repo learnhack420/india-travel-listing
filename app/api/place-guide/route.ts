@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       supabase = createClient(supabaseUrl, supabaseKey);
     }
 
-    // 🌟 1. Check Database Cache First
+    // 🌟 FIX 1: Check Database Cache First, BUT strictly check for the NEW 'insights' format
     if (placeId && supabase) {
       try {
         const { data: existingPlace } = await supabase
@@ -28,7 +28,9 @@ export async function POST(req: Request) {
           .eq('id', placeId)
           .single();
 
-        if (existingPlace?.metadata?.ai_guide) {
+        // Agar cache mein 'insights' array hai tabhi use karein, warna naya generate karein
+        if (existingPlace?.metadata?.ai_guide?.insights) {
+          console.log(`⚡ Using Cached AI Data for place ID: ${placeId}`);
           return NextResponse.json(existingPlace.metadata.ai_guide);
         }
       } catch (dbErr) {
@@ -36,7 +38,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // 🌟 2. Fetch Gemini Models List
+    console.log(`⏳ Fetching fresh AI Data for: ${targetCity}...`);
+
     const modelsReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
     const modelsData = await modelsReq.json();
     
@@ -53,7 +56,6 @@ export async function POST(req: Request) {
         }
     }
 
-    // 🌟 3. Generate Content from Gemini (UPDATED FOR LIST OPTIONS & HEADINGS)
     const prompt = `Act as an expert local travel guide for ${targetCity}, India.
     Provide practical and engaging local recommendations. Use a highly professional and engaging pure English tone.
     
@@ -66,7 +68,7 @@ export async function POST(req: Request) {
        - Parking Lots & Parking Tips
        
        Each object MUST have these 3 keys: 
-       - "title": A proper professional heading (e.g., "Famous Food in ${targetCity}", "Shopping in ${targetCity}", "Parking Lots in ${targetCity}").
+       - "title": A proper professional heading (e.g., "Famous Food near ${targetCity}").
        - "options": An array of strings representing a list. Provide a MAXIMUM of 5 options/tips per category. Each option should be a short, informative sentence.
        - "icon": A relevant emoji.
        

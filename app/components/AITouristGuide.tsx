@@ -15,8 +15,11 @@ export default function AITouristGuide({
   const [aiData, setAiData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const queryName = targetCity || placeTitle || 'India';
-  const exactLocationQuery = encodeURIComponent(`${placeTitle} ${targetCity}`);
+  // 🌟 FIX 2: Combining Place + City properly for specific results
+  // For example: "Gateway of India, Mumbai"
+  const queryName = targetCity ? `${placeTitle}, ${targetCity}` : placeTitle;
+  
+  const exactLocationQuery = encodeURIComponent(queryName);
   const hotelSearchUrl = `https://www.google.com/maps/search/Hotels+near+${encodeURIComponent(placeTitle)}`;
 
   useEffect(() => {
@@ -27,7 +30,7 @@ export default function AITouristGuide({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             placeId,
-            targetCity: queryName, 
+            targetCity: queryName, // Passing exact specific name to AI
             needFaqs: !hasExistingFaqs
           })
         });
@@ -59,24 +62,20 @@ export default function AITouristGuide({
     return styles[index] || styles[0];
   };
 
-  // 🌟 ULTRA-SMART RENDERER: AI kuch bhi bheje, yeh usko beautiful list me convert kar dega
   const renderAiContent = (item: any, style: any) => {
     let listItems: string[] = [];
 
-    // Check if AI sent an array in 'options' or 'description'
     if (Array.isArray(item.options)) {
       listItems = item.options;
     } else if (Array.isArray(item.description)) {
       listItems = item.description;
     } else if (typeof item.description === 'string') {
-      // Agar AI ne string bheji par usme bullet points/newlines hain
       if (item.description.includes('\n') || item.description.includes('•') || item.description.includes('*')) {
         listItems = item.description
           .split('\n')
           .filter((line: string) => line.trim().length > 2)
-          .map((line: string) => line.replace(/^[-*•\d.]\s*/, '').trim()); // Remove bullets/numbers
+          .map((line: string) => line.replace(/^[-*•\d.]\s*/, '').trim()); 
       } else {
-        // Simple paragraph
         return <p className="text-slate-600 font-medium leading-relaxed text-sm md:text-base">{item.description}</p>;
       }
     }
@@ -138,6 +137,7 @@ export default function AITouristGuide({
             ✨
           </div>
           <div>
+            {/* 🌟 Now it will say exactly: AI Travel Guide for Gateway of India, Mumbai */}
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">AI Travel Guide for {queryName}</h2>
             <p className="text-sm font-bold text-blue-600 mt-1 uppercase tracking-wider">Expert local recommendations</p>
           </div>
@@ -162,12 +162,10 @@ export default function AITouristGuide({
                       {item.icon || "📍"}
                     </div>
                     
-                    {/* 🌟 FIX: Heading wrap hogi aur cut nahi hogi */}
                     <h3 className="text-base md:text-lg font-black text-slate-900 uppercase tracking-wide mb-4 leading-snug">
                       {item.title}
                     </h3>
                     
-                    {/* 🌟 FIX: Bullet points smartly render honge */}
                     <div className="mt-2">
                       {renderAiContent(item, style)}
                     </div>
